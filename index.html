@@ -342,6 +342,7 @@ function load() {
   if (s.decayThrough === undefined) s.decayThrough = null;
   if (!s.avatar) s.avatar = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
   else if (s.avatar.class === undefined) { s.avatar.build = 0; s.avatar.class = 0; s.avatar.outfit = 0; s.avatar.hat = 0; } // pre-class saves
+  if (s.avatar.age === undefined) s.avatar.age = 1;
   if (s.avatarMode === undefined) s.avatarMode = 'ai';
   if (s.aiSeedBump === undefined) s.aiSeedBump = 0;
   if (!s.aiCache) s.aiCache = {};
@@ -425,7 +426,11 @@ const HEADGEAR = [
   { name:'Blessed Circlet',  min:8,  cls:4 },
   { name:'Grand Mitre',      min:16, cls:4 },
 ];
-const DEFAULT_AVATAR = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
+const AGES = ['Young adult', 'Adult', 'Middle-aged', 'Elder'];
+const AGE_DESC = ['young adult in their early twenties, youthful smooth features',
+  'adult in their thirties', 'middle-aged around fifty, weathered features with fine lines',
+  'elderly in their seventies, deeply lined wise face with age spots'];
+const DEFAULT_AVATAR = { build:0, class:0, age:1, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
 function classDefaultOutfit(cls, lvl) { // best unlocked tier in this class line
   let best = OUTFITS.findIndex(o => o.cls === cls);
   OUTFITS.forEach((o, i) => { if (o.cls === cls && o.min <= lvl) best = i; });
@@ -963,7 +968,7 @@ function aiPrompt(av) {
   let gear = `wearing ${OUTFITS[av.outfit].name}`;
   if (av.hat === 1) gear += ' and round reading glasses';
   else if (av.hat > 1) gear += ` and a ${HEADGEAR[av.hat].name}`;
-  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]} with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, dark castle library background, film still, award-winning photography.`
+  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]}, ${AGE_DESC[av.age === undefined ? 1 : av.age]}, with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, dark castle library background, film still, award-winning photography.`
     + (state.aiSeedBump ? ` Variation ${state.aiSeedBump}.` : '');
 }
 function hashStr(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
@@ -1021,6 +1026,7 @@ function rerollPortrait() {
 const EDITOR_SLOTS = [
   { key:'build', label:'Build', type:'chip', values: BUILDS },
   { key:'class', label:'Class', type:'chip', values: CLASSES },
+  { key:'age', label:'Age', type:'chip', values: AGES },
   { key:'skin', label:'Skin tone', type:'color', values: SKINS },
   { key:'hair', label:'Hair style', type:'chip', values: HAIR_STYLES },
   { key:'hairColor', label:'Hair color', type:'color', values: HAIR_COLORS },
