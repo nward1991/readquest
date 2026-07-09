@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadQuest — Level Up Your Reading</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#171930">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ReadQuest">
+<script src="https://js.puter.com/v2/"></script>
+<style>
+  :root {
+    --bg: #0d0e1a;
+    --panel: #171930;
+    --panel2: #1f2240;
+    --border: #34386b;
+    --gold: #f5c542;
+    --xp: #7c5cff;
+    --xp2: #b18cff;
+    --hp: #e14b5a;
+    --green: #3ecf8e;
+    --text: #e8e9f5;
+    --dim: #9a9dc4;
+    --font: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -100px, #1c1f45 0%, var(--bg) 60%);
+    color: var(--text); font-family: var(--font); min-height: 100vh; padding-bottom: 60px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+
+  /* ===== Header / Character ===== */
+  .char-card {
+    background: linear-gradient(135deg, var(--panel2), var(--panel));
+    border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px;
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  .avatar {
+    width: 72px; height: 72px; border-radius: 14px; flex: 0 0 72px; overflow: hidden;
+    background: linear-gradient(135deg, #2a2d5e, #171930);
+    border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
+    font-size: 38px;
+  }
+  .char-main { flex: 1; min-width: 220px; }
+  .char-name { font-size: 22px; font-weight: 700; letter-spacing: .5px; cursor: pointer; }
+  .char-name:hover::after { content: " ✏️"; font-size: 14px; }
+  .char-title { color: var(--gold); font-size: 13px; margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
+  .lvl-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .lvl-badge {
+    background: var(--gold); color: #1a1400; font-weight: 800; font-size: 13px;
+    border-radius: 8px; padding: 3px 9px; white-space: nowrap;
+  }
+  .bar { flex: 1; height: 14px; background: #0a0b16; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--xp), var(--xp2)); transition: width .6s cubic-bezier(.2,.9,.3,1.2); }
+  .xp-label { font-size: 12px; color: var(--dim); white-space: nowrap; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; text-align: center;
+  }
+  .stat .v { font-size: 24px; font-weight: 800; color: var(--gold); }
+  .stat .k { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .streak-fire { font-size: 24px; }
+
+  /* ===== Tabs ===== */
+  .tabs { display: flex; gap: 6px; margin: 22px 0 14px; flex-wrap: wrap; }
+  .tab {
+    background: var(--panel); border: 1px solid var(--border); color: var(--dim);
+    padding: 9px 18px; border-radius: 10px; cursor: pointer; font-family: var(--font);
+    font-size: 14px; font-weight: 600; transition: all .15s;
+  }
+  .tab.active { background: var(--xp); border-color: var(--xp); color: #fff; }
+  .tab:hover:not(.active) { border-color: var(--xp); color: var(--text); }
+
+  section { display: none; }
+  section.active { display: block; animation: fadeIn .25s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+
+  /* ===== Quest cards ===== */
+  .quest {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 14px;
+  }
+  .quest-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .quest h3 { font-size: 17px; }
+  .quest .author { color: var(--dim); font-size: 13px; }
+  .boss-tag { font-size: 12px; color: var(--hp); font-weight: 700; white-space: nowrap; }
+  .hp-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .hp-bar { flex: 1; height: 16px; background: #0a0b16; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .hp-bar > div { height: 100%; background: linear-gradient(90deg, #b0313e, var(--hp)); transition: width .6s; }
+  .hp-label { font-size: 12px; color: var(--dim); white-space: nowrap; min-width: 90px; text-align: right; }
+  .quest-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .quest-actions input[type=number] { width: 90px; }
+
+  /* ===== Forms / buttons ===== */
+  input, select {
+    background: #0a0b16; border: 1px solid var(--border); color: var(--text);
+    border-radius: 9px; padding: 9px 12px; font-family: var(--font); font-size: 14px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--xp); }
+  button {
+    background: var(--xp); color: #fff; border: none; border-radius: 9px;
+    padding: 9px 16px; font-family: var(--font); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: transform .1s, filter .15s;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: scale(.96); }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+  button.gold { background: var(--gold); color: #1a1400; }
+  button.danger { background: transparent; border: 1px solid var(--hp); color: var(--hp); padding: 9px 12px; }
+  .add-form {
+    background: var(--panel); border: 1px dashed var(--border); border-radius: 14px;
+    padding: 18px 20px; display: grid; gap: 10px; margin-bottom: 18px;
+    grid-template-columns: 2fr 1.5fr 1fr 1fr auto;
+  }
+  .add-form .full { grid-column: 1 / -1; font-size: 13px; color: var(--dim); }
+  @media (max-width: 700px) { .add-form { grid-template-columns: 1fr 1fr; } .add-form button { grid-column: 1 / -1; } }
+
+  .empty { color: var(--dim); text-align: center; padding: 40px 20px; font-size: 15px; }
+
+  /* ===== Book search results ===== */
+  .result {
+    display: flex; gap: 10px; align-items: center; padding: 8px 10px;
+    background: #0a0b16; border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; margin-bottom: 6px;
+  }
+  .result:hover { border-color: var(--gold); }
+  .result img, .result .no-cover {
+    width: 34px; height: 50px; object-fit: cover; border-radius: 4px; flex: 0 0 34px;
+    background: var(--panel2); display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .result .r-t { font-weight: 700; font-size: 14px; }
+  .result .r-a { font-size: 12px; color: var(--dim); }
+  .result .r-p { margin-left: auto; font-size: 12px; color: var(--gold); white-space: nowrap; }
+  .quest .cover { width: 44px; height: 64px; object-fit: cover; border-radius: 6px; flex: 0 0 44px; border: 1px solid var(--border); }
+  .trophy-book .cover { width: 60px; height: 88px; object-fit: cover; border-radius: 6px; border: 1px solid var(--gold); }
+
+  /* ===== Achievements ===== */
+  .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .ach {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; display: flex; gap: 12px; align-items: center; opacity: .35;
+    filter: grayscale(1);
+  }
+  .ach.unlocked { opacity: 1; filter: none; border-color: var(--gold); }
+  .ach .icon { font-size: 28px; }
+  .ach .name { font-weight: 700; font-size: 14px; }
+  .ach .desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+  /* ===== Library ===== */
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .trophy-book {
+    background: linear-gradient(160deg, var(--panel2), var(--panel));
+    border: 1px solid var(--gold); border-radius: 12px; padding: 16px 14px; text-align: center;
+  }
+  .trophy-book .emoji { font-size: 34px; }
+  .trophy-book .t { font-weight: 700; font-size: 14px; margin-top: 8px; }
+  .trophy-book .a { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .trophy-book .d { font-size: 11px; color: var(--gold); margin-top: 6px; }
+
+  /* ===== Avatar editor ===== */
+  #avatar svg { width: 100%; height: 100%; display: block; }
+  #avatarModal {
+    position: fixed; inset: 0; background: rgba(5,6,15,.85); display: none;
+    align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  #avatarModal.show { display: flex; }
+  .editor {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
+    width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; padding: 22px;
+  }
+  .editor-head { display: flex; gap: 18px; align-items: center; margin-bottom: 14px; }
+  .editor-preview {
+    width: 120px; height: 120px; flex: 0 0 120px; border-radius: 14px;
+    background: linear-gradient(135deg, #2a2d5e, #171930); border: 2px solid var(--gold);
+    overflow: hidden;
+  }
+  .editor-preview svg { width: 100%; height: 100%; }
+  .ed-row { margin-bottom: 12px; }
+  .ed-row .lbl { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: #0a0b16; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 6px 10px; font-size: 12.5px; cursor: pointer; font-weight: 600;
+  }
+  .chip.sel { border-color: var(--gold); color: var(--gold); }
+  .chip.locked { opacity: .45; cursor: not-allowed; }
+  .swatch {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer;
+  }
+  .swatch.sel { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(245,197,66,.35); }
+
+  /* ===== Toast & Victory ===== */
+  #toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+  .toast {
+    background: var(--panel2); border: 1px solid var(--gold); color: var(--text);
+    border-radius: 10px; padding: 12px 18px; font-size: 14px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5); animation: slideIn .3s;
+  }
+  @keyframes slideIn { from { transform: translateX(120%); } to { transform: none; } }
+
+  #overlay {
+    position: fixed; inset: 0; background: rgba(5,6,15,.85); display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  .victory {
+    background: linear-gradient(160deg, #2a2d5e, var(--panel));
+    border: 2px solid var(--gold); border-radius: 20px; padding: 40px 48px;
+    text-align: center; max-width: 420px; animation: pop .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .victory h2 { color: var(--gold); font-size: 26px; letter-spacing: 2px; }
+  .victory .big { font-size: 56px; margin: 12px 0; }
+  .victory p { color: var(--dim); margin: 8px 0 20px; }
+  .victory .xp-gain { color: var(--xp2); font-weight: 800; font-size: 20px; }
+
+  .confetti { position: fixed; top: -10px; font-size: 20px; z-index: 99; animation: fall linear forwards; pointer-events: none; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+
+  .hint { font-size: 12px; color: var(--dim); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Character -->
+  <div class="char-card">
+    <div class="avatar" id="avatar" title="Click to customize your hero" style="cursor:pointer"></div>
+    <div class="char-main">
+      <div class="char-name" id="charName" title="Click to rename">Nick the Novice</div>
+      <div class="char-title" id="charTitle">Apprentice of the Page</div>
+      <div class="lvl-row">
+        <span class="lvl-badge" id="lvlBadge">LV 1</span>
+        <div class="bar"><div id="xpBar" style="width:0%"></div></div>
+        <span class="xp-label" id="xpLabel">0 / 100 XP</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="stWis">0</div><div class="k">📖 Wisdom (pages)</div></div>
+    <div class="stat"><div class="v" id="stMight">0</div><div class="k">⚔️ End bosses slain</div></div>
+    <div class="stat"><div class="v" id="stQuests">0</div><div class="k">📜 Quests done</div></div>
+    <div class="stat"><div class="v" id="stStreak">0</div><div class="k">🔥 Streak (days)</div></div>
+    <div class="stat"><div class="v" id="stBest">0</div><div class="k">🏆 Best streak</div></div>
+  </div>
+
+  <div class="hint" id="decayHint" style="display:none; color: var(--hp); margin-top:12px; text-align:center;"></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="quests">⚔️ Quests</button>
+    <button class="tab" data-tab="achievements">🏅 Achievements</button>
+    <button class="tab" data-tab="library">📚 Trophy Shelf</button>
+  </div>
+
+  <!-- Quests -->
+  <section id="quests" class="active">
+    <form class="add-form" id="addForm">
+      <div style="grid-column: 1 / -1; display: flex; gap: 8px;">
+        <input id="fSearch" placeholder="🔍 Search the great library… (title or author)" style="flex:1">
+        <button type="button" onclick="searchBooks()">Find Book</button>
+      </div>
+      <div id="searchResults" style="grid-column: 1 / -1; display: none;"></div>
+      <input id="fTitle" placeholder="Book title *" required>
+      <input id="fAuthor" placeholder="Author">
+      <input id="fPages" type="number" min="1" placeholder="Pages *" required>
+      <select id="fGenre">
+        <option value="">Genre…</option>
+        <option>Fantasy</option><option>Sci-Fi</option><option>Mystery</option>
+        <option>Non-fiction</option><option>Biography</option><option>History</option>
+        <option>Romance</option><option>Horror</option><option>Other</option>
+      </select>
+      <button type="submit" class="gold">+ New Quest</button>
+      <div class="full">Each book is a 3-stage adventure: Quest 1 at ⅓, Quest 2 at ⅔, then face the end boss — finish the book! 🗡️</div>
+    </form>
+    <div id="questList"></div>
+  </section>
+
+  <!-- Achievements -->
+  <section id="achievements">
+    <div class="ach-grid" id="achGrid"></div>
+  </section>
+
+  <!-- Library -->
+  <section id="library">
+    <div class="shelf" id="shelf"></div>
+    <div class="empty" id="shelfEmpty">No bosses slain yet. Finish a book to mount its trophy here.</div>
+  </section>
+
+  <div style="text-align:center; margin-top:36px;">
+    <button class="danger" onclick="resetProgress()" style="font-size:12px;">↺ Reset all progress</button>
+  </div>
+</div>
+
+<!-- Avatar editor -->
+<div id="avatarModal">
+  <div class="editor">
+    <div class="editor-head">
+      <div class="editor-preview" id="edPreview"></div>
+      <div>
+        <h3 style="font-size:18px">Customize Hero</h3>
+        <div class="hint">Gear unlocks as you level up. Beware — if XP decay drops your level, gear re-locks!</div>
+      </div>
+    </div>
+    <div id="editorRows"></div>
+    <div style="text-align:right; margin-top:14px"><button class="gold" onclick="closeAvatarEditor()">Done</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="overlay">
+  <div class="victory">
+    <h2 id="victoryTitle">BOSS DEFEATED</h2>
+    <div class="big" id="victoryEmoji">👑</div>
+    <img id="victoryCover" style="display:none; width:90px; border-radius:8px; border:2px solid var(--gold); margin:4px auto 8px;" alt="">
+    <p id="victoryText"></p>
+    <div class="xp-gain" id="victoryXP"></div>
+    <p class="hint" id="victoryHint"></p>
+    <button class="gold" onclick="closeVictory()">Claim Victory</button>
+  </div>
+</div>
+
+<script>
+/* ================= State ================= */
+const KEY = 'readquest_v1';
+let mem = null; // in-memory fallback
+function load() {
+  let s = null;
+  try { const raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch(e) {}
+  s = s || mem || { name: 'Nick', xp: 0, books: [], logs: [], ach: [], bestStreak: 0 };
+  // migrations / defaults
+  if (s.decayThrough === undefined) s.decayThrough = null;
+  if (!s.avatar) s.avatar = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
+  else if (s.avatar.class === undefined) { s.avatar.build = 0; s.avatar.class = 0; s.avatar.outfit = 0; s.avatar.hat = 0; } // pre-class saves
+  if (s.avatarMode === undefined) s.avatarMode = 'ai';
+  if (s.aiSeedBump === undefined) s.aiSeedBump = 0;
+  if (!s.aiCache) s.aiCache = {};
+  return s;
+}
+function save() {
+  mem = state;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {}
+}
+let state = load();
+
+/* ================= Leveling ================= */
+// XP needed to go from level n to n+1
+function xpToNext(lvl) { return Math.floor(100 * Math.pow(lvl, 1.4)); }
+function levelInfo(totalXP) {
+  let lvl = 1, rem = totalXP;
+  while (rem >= xpToNext(lvl)) { rem -= xpToNext(lvl); lvl++; }
+  return { lvl, rem, need: xpToNext(lvl) };
+}
+const TITLES = [
+  [1,'Apprentice of the Page'],[3,'Scroll Seeker'],[5,'Chapter Knight'],
+  [8,'Tome Warden'],[12,'Lorekeeper'],[16,'Grand Bibliomancer'],
+  [20,'Archsage of Stories'],[30,'Legend of the Library']
+];
+function titleFor(lvl) {
+  let t = TITLES[0][1];
+  for (const [l, name] of TITLES) if (lvl >= l) t = name;
+  return t;
+}
+/* ================= Avatar system ================= */
+const SKINS = ['#f6d3b8','#eab48f','#d29b6e','#b07a4f','#8d5a33','#5f3a1c'];
+const HAIR_COLORS = ['#241b14','#4a2f18','#7a4a22','#b5722f','#d9c087','#8a3324','#8f8f8f','#ece9e2'];
+const EYE_COLORS = ['#3b2a1a','#2f5d8a','#3e6b3f','#57606a'];
+const HAIR_STYLES = ['Bald','Buzz','Short','Medium','Long','Ponytail','Curly','Bun'];
+const EYE_STYLES = ['Round','Narrow','Happy','Determined'];
+const BEARDS = ['Clean-shaven','Stubble','Mustache','Full beard'];
+const BUILDS = ['Masculine','Feminine'];
+const CLASSES = ['⚔️ Warrior','🪄 Mage','🏹 Ranger','🗡️ Rogue','✨ Priest'];
+/* Gear follows real high-fantasy class progressions — a squire becomes a knight,
+   an apprentice becomes an archmage. cls: 0=Warrior 1=Mage 2=Ranger, null=any class */
+const OUTFITS = [
+  { name:"Squire's Gambeson",   min:1,  cls:0 },
+  { name:"Footman's Mail",      min:5,  cls:0 },
+  { name:"Knight's Plate",      min:12, cls:0 },
+  { name:"Champion's Warplate", min:20, cls:0 },
+  { name:'Apprentice Robe',     min:1,  cls:1 },
+  { name:"Adept's Vestments",   min:5,  cls:1 },
+  { name:'Magus Robes',         min:12, cls:1 },
+  { name:'Archmage Regalia',    min:20, cls:1 },
+  { name:"Wanderer's Leathers", min:1,  cls:2 },
+  { name:"Scout's Jerkin",      min:5,  cls:2 },
+  { name:"Ranger's Cloak",      min:12, cls:2 },
+  { name:"Warden's Mantle",     min:20, cls:2 },
+  { name:"Legend's Raiment",    min:30, cls:null },
+  { name:"Footpad's Garb",      min:1,  cls:3 },
+  { name:'Cutpurse Leathers',   min:5,  cls:3 },
+  { name:'Shadowblade Armor',   min:12, cls:3 },
+  { name:"Assassin's Shroud",   min:20, cls:3 },
+  { name:"Acolyte's Habit",     min:1,  cls:4 },
+  { name:"Cleric's Cassock",    min:5,  cls:4 },
+  { name:"Bishop's Vestments",  min:12, cls:4 },
+  { name:"High Priest's Raiment", min:20, cls:4 },
+];
+const HEADGEAR = [
+  { name:'None',             min:1,  cls:null },
+  { name:'Reading Glasses',  min:1,  cls:null },
+  { name:'Padded Coif',      min:3,  cls:0 },
+  { name:'Steel Helm',       min:8,  cls:0 },
+  { name:'Greathelm',        min:16, cls:0 },
+  { name:'Apprentice Hood',  min:3,  cls:1 },
+  { name:'Gold Circlet',     min:8,  cls:1 },
+  { name:'Wizard Hat',       min:16, cls:1 },
+  { name:'Leather Hood',     min:3,  cls:2 },
+  { name:'Feathered Cap',    min:8,  cls:2 },
+  { name:'Antler Crown',     min:16, cls:2 },
+  { name:'Crown of Legends', min:30, cls:null },
+  { name:'Dark Cowl',        min:3,  cls:3 },
+  { name:'Shadow Mask',      min:8,  cls:3 },
+  { name:'Nightveil Hood',   min:16, cls:3 },
+  { name:'Prayer Hood',      min:3,  cls:4 },
+  { name:'Blessed Circlet',  min:8,  cls:4 },
+  { name:'Grand Mitre',      min:16, cls:4 },
+];
+const DEFAULT_AVATAR = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
+function classDefaultOutfit(cls, lvl) { // best unlocked tier in this class line
+  let best = OUTFITS.findIndex(o => o.cls === cls);
+  OUTFITS.forEach((o, i) => { if (o.cls === cls && o.min <= lvl) best = i; });
+  return best;
+}
+
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = x => Math.min(255, Math.round(x * f)).toString(16).padStart(2, '0');
+  return '#' + c((n>>16)&255) + c((n>>8)&255) + c(n&255);
+}
+function playerLevel() { return levelInfo(state.xp).lvl; }
+function effectiveAvatar() { // XP decay can drop your level and re-lock gear
+  const av = { ...DEFAULT_AVATAR, ...(state.avatar || {}) };
+  const lvl = playerLevel();
+  const o = OUTFITS[av.outfit];
+  if (!o || o.min > lvl || (o.cls !== null && o.cls !== av.class)) av.outfit = classDefaultOutfit(av.class, lvl);
+  const h = HEADGEAR[av.hat];
+  if (!h || h.min > lvl || (h.cls !== null && h.cls !== av.class)) av.hat = 0;
+  return av;
+}
+
+function buildAvatarSVG(av) {
+  const skin = SKINS[av.skin], hc = HAIR_COLORS[av.hairColor], ec = EYE_COLORS[av.eyeColor];
+  const skinD = shade(skin, .8), hcD = shade(hc, .72);
+  const gold = '#f5c542';
+  const fem = av.build === 1;
+  const uid = 'g' + Math.random().toString(36).slice(2, 7); // unique gradient ids per render
+  const hairG = `url(#hair_${uid})`, skinG = `url(#skin_${uid})`, metalG = `url(#metal_${uid})`,
+        goldG = `url(#gold_${uid})`, clothG = `url(#cloth_${uid})`, irisG = `url(#iris_${uid})`;
+  const headPath = fem
+    ? 'M60,27 C47.5,27 40.5,36.5 40.3,48 C40.2,55 42,62 45.5,67.5 C49,73.5 54.5,79.5 60,79.5 C65.5,79.5 71,73.5 74.5,67.5 C78,62 79.8,55 79.7,48 C79.5,36.5 72.5,27 60,27 Z'
+    : 'M60,27 C46.5,27 39.5,36.5 39.3,48 C39.2,55.5 41,63 45,69 C49,75 54,79 60,79 C66,79 71,75 75,69 C79,63 80.8,55.5 80.7,48 C80.5,36.5 73.5,27 60,27 Z';
+  let hairBack = '', hairFront = '', beard = '', hat = '', outfit = '';
+
+  // --- Hair (gradient base + strand highlights) ---
+  const strands = (d) => `<path d="${d}" stroke="${shade(hc,1.4)}" stroke-width="1.3" opacity=".35" fill="none" stroke-linecap="round"/>`;
+  switch (av.hair) {
+    case 1: hairFront = `<path d="M39.5,50 Q39.5,25 60,25 Q80.5,25 80.5,50 Q78,35 60,33 Q42,35 39.5,50 Z" fill="${hairG}" opacity=".9"/>`; break;
+    case 2: hairFront = `<path d="M38.5,50 Q38.5,23 60,23 Q81.5,23 81.5,50 Q81.5,39 75,37 Q66,31 57,34 Q44,34 38.5,50 Z" fill="${hairG}"/>` + strands('M46,32 Q56,26 70,29') + strands('M50,36 Q60,31 72,34'); break;
+    case 3: hairFront = `<path d="M37.5,58 Q36.5,21 60,21 Q83.5,21 82.5,58 Q80,39 73,36 Q60,29 47,36 Q40,39 37.5,58 Z" fill="${hairG}"/>` + strands('M44,40 Q54,28 70,31') + strands('M42,50 Q46,36 56,32'); break;
+    case 4:
+      hairBack = `<path d="M34,96 Q29,40 60,22 Q91,40 86,96 Q75,101 60,101 Q45,101 34,96 Z" fill="${hairG}"/>` + strands('M40,80 Q36,50 52,32') + strands('M80,80 Q84,50 68,32') + strands('M37,90 Q35,62 44,44');
+      hairFront = `<path d="M40,45 Q42,27 60,25 Q78,27 80,45 Q70,33 60,35 Q50,33 40,45 Z" fill="${hairG}"/>`; break;
+    case 5:
+      hairBack = `<path d="M76,38 Q95,46 89,80 Q86,90 81,81 Q88,58 73,43 Z" fill="${hairG}"/>` + strands('M79,46 Q88,58 84,76') + `<circle cx="77" cy="40" r="3.5" fill="${goldG}"/>`;
+      hairFront = `<path d="M38.5,50 Q38.5,23 60,23 Q81.5,23 81.5,50 Q81.5,39 75,37 Q66,31 57,34 Q44,34 38.5,50 Z" fill="${hairG}"/>` + strands('M46,32 Q56,26 70,29'); break;
+    case 6:
+      hairFront = ['44,37','53,29','66,29','75,37','60,25','40,47','80,47'].map((p,i) => {
+        const [x,y] = p.split(','); return `<circle cx="${x}" cy="${y}" r="${i<5?9:7}" fill="${hairG}"/><circle cx="${+x-2}" cy="${+y-2.5}" r="${(i<5?9:7)*.45}" fill="${shade(hc,1.3)}" opacity=".25"/>`;
+      }).join(''); break;
+    case 7:
+      hairBack = `<circle cx="60" cy="18" r="8.5" fill="${hairG}"/><circle cx="58" cy="15.5" r="3.5" fill="${shade(hc,1.3)}" opacity=".3"/>`;
+      hairFront = `<path d="M39.5,48 Q39.5,24 60,24 Q80.5,24 80.5,48 Q78,34 60,32 Q42,34 39.5,48 Z" fill="${hairG}"/>` + strands('M46,32 Q57,27 71,30'); break;
+  }
+
+  // --- Eyes (almond, lidded, iris gradient; centers 51.5 / 68.5) ---
+  const eyeY = 49.5;
+  const openness = [1, .64, 0, .82][av.eyes];
+  const lidW = fem ? 1.5 : 1.1;
+  const eye = (cx, m) => { // m = 1 left, -1 right (mirrors inner/outer corners)
+    if (av.eyes === 2) { // happy — closed, upturned
+      return `<path d="M${cx-4.6},${eyeY+1} Q${cx},${eyeY-2.8} ${cx+4.6},${eyeY+1}" stroke="#2a2019" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+    }
+    const k = openness;
+    const shapeId = `eye_${uid}_${m>0?'l':'r'}`;
+    const shape = `M${cx-4.8},${eyeY+.3} Q${cx-m},${eyeY-3.1*k} ${cx+4.8},${eyeY+.7} Q${cx+.4},${eyeY+2.7*k} ${cx-4.8},${eyeY+.3} Z`;
+    return `<defs><clipPath id="${shapeId}"><path d="${shape}"/></clipPath></defs>
+      <path d="${shape}" fill="#f6f4ef"/>
+      <g clip-path="url(#${shapeId})">
+        <circle cx="${cx+.3*m}" cy="${eyeY-.1}" r="2.6" fill="${irisG}"/>
+        <circle cx="${cx+.3*m}" cy="${eyeY-.1}" r="1.15" fill="#14100c"/>
+        <circle cx="${cx-.6+.3*m}" cy="${eyeY-1}" r=".55" fill="#fff" opacity=".9"/>
+        <path d="M${cx-5},${eyeY-1.6} Q${cx},${eyeY-3.8} ${cx+5},${eyeY-1.2} L${cx+5},${eyeY-4.5} L${cx-5},${eyeY-4.5} Z" fill="${skinD}" opacity=".13"/>
+      </g>
+      <path d="M${cx-4.8},${eyeY+.3} Q${cx-m},${eyeY-3.1*k} ${cx+4.8},${eyeY+.7}" stroke="#241a12" stroke-width="${lidW}" fill="none" stroke-linecap="round"/>
+      <path d="M${cx-4.4},${eyeY-2.6} Q${cx},${eyeY-4.6} ${cx+4.4},${eyeY-2.2}" stroke="${skinD}" stroke-width=".9" fill="none" opacity=".4"/>
+      <path d="M${cx-3.8},${eyeY+2.3*k+.5} Q${cx+.4},${eyeY+3.4*k+.6} ${cx+4.2},${eyeY+1.4}" stroke="${skinD}" stroke-width=".7" fill="none" opacity=".35"/>
+      ${fem ? `<path d="M${cx-4.8},${eyeY+.3} L${cx-6.2},${eyeY-1}" stroke="#241a12" stroke-width="1" stroke-linecap="round"/>` : ''}`;
+  };
+  // Brows — filled, tapered shapes
+  const brow = (cx, m) => {
+    const det = av.eyes === 3;
+    const y1 = det ? 43.2 : 44.2, y2 = det ? 45.6 : 43.2;
+    const th = fem ? 1.1 : 1.9;
+    return `<path d="M${cx-5*m},${y1} Q${cx-m},${y1-1.6} ${cx+5*m},${y2} Q${cx+4.6*m},${y2+th*.9} ${cx+2*m},${y2+th*.35} Q${cx-2*m},${y1-1.6+th} ${cx-4.8*m},${y1+th*.8} Z" fill="${hcD}"/>`;
+  };
+  const brows = brow(51.5, 1) + brow(68.5, -1);
+  const lashes = '';
+
+  // --- Facial hair (gradient, soft edges) ---
+  switch (av.beard) {
+    case 1: beard = `<path d="M42,54 Q42,76 60,78 Q78,76 78,54 Q78,70 60,73 Q42,70 42,54 Z" fill="${hc}" opacity=".22" clip-path="url(#headClip_${uid})"/><ellipse cx="60" cy="70" rx="13" ry="8" fill="${hc}" opacity=".14" clip-path="url(#headClip_${uid})"/>`; break;
+    case 2: beard = `<path d="M51,66.5 Q55,63.6 60,64.4 Q65,63.6 69,66.5 Q64.5,68.6 60,68 Q55.5,68.6 51,66.5 Z" fill="${hairG}"/>`; break;
+    case 3: beard = `<path d="M41.5,52 C41.5,79 50,86 60,86 C70,86 78.5,79 78.5,52 C76.5,67 70,72.5 60,72.5 C50,72.5 43.5,67 41.5,52 Z" fill="${hairG}"/><path d="M51,66.5 Q55,63.6 60,64.4 Q65,63.6 69,66.5 Q64.5,68.6 60,68 Q55.5,68.6 51,66.5 Z" fill="${hairG}"/>` + strands('M50,74 Q55,80 60,80.5') + strands('M70,74 Q65,80 60,80.5'); break;
+  }
+
+  // --- Outfit (shoulders) — class gear lines ---
+  const shoulders = `M18,130 C22,101 38,91 60,91 C82,91 98,101 102,130 Z`;
+  const o = av.outfit;
+  const oc = ['#b39b72','#9aa2ad','#8d97a3','#7d8794',          // warrior
+              '#46648f','#3d5a80','#5b3fa8','#e8e4d8',          // mage
+              '#7a5c3e','#567d4e','#3e6b4f','#4c7a5c',          // ranger
+              '#23242e',                                         // legend
+              '#4a4d57','#3a3d46','#2e3138','#1f2128',          // rogue
+              '#cfc8b4','#e3ddcc','#e8e2d0','#f0ead8'][o];      // priest
+  const metalBase = [1, 2, 3].includes(o);
+  outfit = `<path d="${shoulders}" fill="${metalBase ? metalG : clothG}"/>`
+    + `<path d="M30,130 Q34,104 46,96" stroke="#000" stroke-width="3" opacity=".08" fill="none"/>`
+    + `<path d="M90,130 Q86,104 74,96" stroke="#000" stroke-width="3" opacity=".08" fill="none"/>`
+    + `<path d="M42,94 Q60,89.5 78,94" stroke="#fff" stroke-width="2" opacity=".1" fill="none"/>`;
+  const trimBand = `M22,112 C30,96 44,92 60,92 C76,92 90,96 98,112`;
+  switch (o) {
+    case 0: // Squire's Gambeson — quilted padding
+      outfit += `<path d="M42,98 L42,130 M51,94 L51,130 M60,92.5 L60,130 M69,94 L69,130 M78,98 L78,130" stroke="${shade(oc,.8)}" stroke-width="1.4"/><path d="M28,110 Q60,100 92,110 M24,122 Q60,111 96,122" stroke="${shade(oc,.8)}" stroke-width="1.4" fill="none"/>`; break;
+    case 1: // Footman's Mail — chain rings + small plates
+      for (let ry = 100; ry <= 124; ry += 6) for (let rx = 34 + (ry % 12 === 4 ? 3 : 0); rx <= 86; rx += 6)
+        outfit += `<circle cx="${rx}" cy="${ry}" r="2" fill="none" stroke="${shade(oc,.78)}" stroke-width=".8"/>`;
+      outfit += `<path d="${trimBand}" stroke="#6b7580" stroke-width="4" fill="none"/>`; break;
+    case 2: // Knight's Plate — pauldrons
+      outfit += `<ellipse cx="33" cy="103" rx="14" ry="9.5" fill="${metalG}" stroke="#5f6873"/><ellipse cx="87" cy="103" rx="14" ry="9.5" fill="${metalG}" stroke="#5f6873"/><path d="M50,97 Q60,102 70,97" stroke="#6b7580" stroke-width="1.5" fill="none"/><circle cx="33" cy="103" r="1.5" fill="#6b7580"/><circle cx="87" cy="103" r="1.5" fill="#6b7580"/>`; break;
+    case 3: // Champion's Warplate — gold-chased plate, crimson cape
+      outfit += `<path d="M20,130 Q16,104 30,96 L34,130 Z M100,130 Q104,104 90,96 L86,130 Z" fill="#8a2430"/><ellipse cx="33" cy="102" rx="14" ry="9.5" fill="${metalG}" stroke="${goldG}" stroke-width="1.5"/><ellipse cx="87" cy="102" rx="14" ry="9.5" fill="${metalG}" stroke="${goldG}" stroke-width="1.5"/><path d="${trimBand}" stroke="${gold}" stroke-width="2.5" fill="none"/><path d="M60,104 l2.5,5 5.5,.7 -4,3.9 1,5.5 -5,-2.6 -5,2.6 1,-5.5 -4,-3.9 5.5,-.7 Z" fill="${gold}"/>`; break;
+    case 4: // Apprentice Robe — plain with rope belt
+      outfit += `<path d="M52,92 L60,104 L68,92" stroke="${shade(oc,.72)}" stroke-width="2" fill="none"/><path d="M30,124 Q60,116 90,124" stroke="#c9b88a" stroke-width="2.5" fill="none"/>`; break;
+    case 5: // Adept's Vestments — placket + tome pendant
+      outfit += `<rect x="56.5" y="92" width="7" height="38" fill="${shade(oc,.75)}"/><rect x="56" y="106" width="8" height="6" rx="1" fill="${gold}" opacity=".85"/>`; break;
+    case 6: // Magus Robes — arcane runes
+      outfit += `<circle cx="44" cy="106" r="2.5" fill="${gold}" opacity=".85"/><circle cx="60" cy="112" r="2.5" fill="${gold}" opacity=".85"/><circle cx="76" cy="106" r="2.5" fill="${gold}" opacity=".85"/><path d="M56.5,92 L60,130 L63.5,92" fill="${shade(oc,.8)}"/>`; break;
+    case 7: // Archmage Regalia — white & gold, sun sigil
+      outfit += `<path d="${trimBand}" stroke="${gold}" stroke-width="3.5" fill="none"/><circle cx="60" cy="108" r="6" fill="${gold}"/><circle cx="60" cy="108" r="3" fill="#fff8e0"/>`; break;
+    case 8: // Wanderer's Leathers — strap & buckle
+      outfit += `<path d="M40,94 L84,126" stroke="${shade(oc,.7)}" stroke-width="5"/><rect x="58" y="106" width="6" height="6" rx="1" fill="#c9b88a"/>`; break;
+    case 9: // Scout's Jerkin — laced collar
+      outfit += `<path d="M54,93 L66,101 M66,93 L54,101 M54,101 L66,109 M66,101 L54,109" stroke="#c9b88a" stroke-width="1.6"/><path d="${trimBand}" stroke="${shade(oc,.75)}" stroke-width="3" fill="none"/>`; break;
+    case 10: // Ranger's Cloak — deep green, leaf clasp
+      outfit += `<path d="M18,130 C20,100 34,92 42,92 L46,130 Z M102,130 C100,100 86,92 78,92 L74,130 Z" fill="${shade(oc,.7)}"/><ellipse cx="60" cy="98" rx="4" ry="2.6" fill="${gold}" transform="rotate(-25 60 98)"/>`; break;
+    case 11: // Warden's Mantle — fur trim, antler brooch
+      outfit += `<path d="${trimBand}" stroke="#d9d2c0" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M57,104 Q55,97 52,95 M63,104 Q65,97 68,95" stroke="#c9b88a" stroke-width="2" fill="none" stroke-linecap="round"/>`; break;
+    case 12: // Legend's Raiment — black & gold, starlit
+      outfit += `<path d="${shoulders}" fill="none" stroke="${gold}" stroke-width="2" opacity=".7"/><path d="M56.5,92 L60,130 L63.5,92" fill="${gold}" opacity=".9"/><path d="M60,100 l2,4 4,.5 -3,3 .8,4.2 -3.8,-2 -3.8,2 .8,-4.2 -3,-3 4,-.5 Z" fill="#fff3c4"/>`; break;
+    case 13: // Footpad's Garb — rough wrap & sash
+      outfit += `<path d="M38,95 L84,120" stroke="${shade(oc,.72)}" stroke-width="6"/><path d="M52,92 L60,102 L68,92" stroke="${shade(oc,.72)}" stroke-width="2" fill="none"/>`; break;
+    case 14: // Cutpurse Leathers — belt & pouches
+      outfit += `<path d="M26,116 Q60,106 94,116" stroke="#5a4a33" stroke-width="4.5" fill="none"/><rect x="42" y="112" width="7" height="8" rx="1.5" fill="#5a4a33"/><rect x="70" y="112" width="7" height="8" rx="1.5" fill="#5a4a33"/><rect x="57" y="110" width="6" height="5" rx="1" fill="#8a7550"/>`; break;
+    case 15: // Shadowblade Armor — crossed baldrics, violet-edged pauldrons
+      outfit += `<path d="M40,94 L82,124 M80,94 L38,124" stroke="#20222a" stroke-width="4.5"/><ellipse cx="34" cy="102" rx="13" ry="9" fill="#2a2c35" stroke="#6b4fd8" stroke-width="1.3"/><ellipse cx="86" cy="102" rx="13" ry="9" fill="#2a2c35" stroke="#6b4fd8" stroke-width="1.3"/><rect x="76" y="108" width="4" height="13" rx="2" fill="#8f97a3" transform="rotate(35 78 114)"/>`; break;
+    case 16: // Assassin's Shroud — night-black, crimson sash, blade pin
+      outfit += `<path d="M30,120 Q60,108 90,120 L88,128 Q60,117 32,128 Z" fill="#8a2430"/><path d="${shoulders}" fill="none" stroke="#6b4fd8" stroke-width="1.5" opacity=".5"/><path d="M58,98 L62,98 L60,112 Z" fill="#c7ccd4"/><circle cx="60" cy="97" r="1.6" fill="${gold}"/>`; break;
+    case 17: // Acolyte's Habit — plain habit, rope belt
+      outfit += `<path d="M52,92 L60,104 L68,92" stroke="${shade(oc,.78)}" stroke-width="2" fill="none"/><path d="M30,124 Q60,116 90,124" stroke="#b3a276" stroke-width="2.5" fill="none"/>`; break;
+    case 18: // Cleric's Cassock — gold placket, sun pendant
+      outfit += `<rect x="56.5" y="92" width="7" height="38" fill="${shade(oc,.85)}"/><circle cx="60" cy="110" r="4" fill="${gold}"/><path d="M60,103 L60,101 M60,117 L60,119 M53,110 L51,110 M67,110 L69,110 M55,105 L53.5,103.5 M65,105 L66.5,103.5 M55,115 L53.5,116.5 M65,115 L66.5,116.5" stroke="${gold}" stroke-width="1.4"/>`; break;
+    case 19: // Bishop's Vestments — gold stole bands
+      outfit += `<path d="M48,92 L44,130 L54,130 L56,93 Z M72,92 L76,130 L66,130 L64,93 Z" fill="${gold}" opacity=".85"/><path d="M46,102 L54,102 M66,102 L74,102 M45,114 L53,114 M67,114 L75,114" stroke="#c99a1e" stroke-width="1.3"/>`; break;
+    case 20: // High Priest's Raiment — radiant, sunburst
+      outfit += `<path d="${trimBand}" stroke="${gold}" stroke-width="3.5" fill="none"/><circle cx="60" cy="110" r="7" fill="${gold}"/><circle cx="60" cy="110" r="3.5" fill="#fff8e0"/>${[0,45,90,135,180,225,270,315].map(a=>`<path d="M60,110 m${10*Math.cos(a*Math.PI/180)},${10*Math.sin(a*Math.PI/180)} l${4*Math.cos(a*Math.PI/180)},${4*Math.sin(a*Math.PI/180)}" stroke="${gold}" stroke-width="1.8"/>`).join('')}`; break;
+  }
+
+  // --- Headgear — class gear lines ---
+  switch (av.hat) {
+    case 1: // Reading Glasses
+      hat = `<circle cx="52" cy="50" r="6" stroke="#443c30" stroke-width="1.5" fill="none"/><circle cx="68" cy="50" r="6" stroke="#443c30" stroke-width="1.5" fill="none"/><path d="M58,50 L62,50 M46,50 L40,53 M74,50 L80,53" stroke="#443c30" stroke-width="1.5"/>`; break;
+    case 2: // Padded Coif
+      hat = `<path d="M38,52 Q38,20 60,20 Q82,20 82,52 L82,62 Q77,66 75,58 L75,44 Q69,32 60,32 Q51,32 45,44 L45,58 Q43,66 38,62 Z" fill="#b39b72"/><path d="M44,30 Q60,22 76,30 M40,42 Q60,30 80,42" stroke="${shade('#b39b72',.8)}" stroke-width="1.2" fill="none"/>`; break;
+    case 3: // Steel Helm
+      hat = `<path d="M38,48 Q38,19 60,19 Q82,19 82,48 L82,52 L75,52 L75,42 Q69,31 60,31 Q51,31 45,42 L45,52 L38,52 Z" fill="${metalG}" stroke="#5f6873"/><rect x="58.3" y="42" width="3.4" height="15" rx="1.5" fill="${metalG}" stroke="#5f6873" stroke-width=".8"/>`; break;
+    case 4: // Greathelm — crested, cheek guards
+      hat = `<path d="M38,48 Q38,17 60,17 Q82,17 82,48 L82,64 Q76,68 74,60 L74,42 Q68,30 60,30 Q52,30 46,42 L46,60 Q44,68 38,64 Z" fill="${metalG}" stroke="#4f5761"/><path d="M50,17 Q60,4 70,17 Q60,12 50,17 Z" fill="#c23040"/><rect x="58.3" y="40" width="3.4" height="16" rx="1.5" fill="${metalG}" stroke="#4f5761" stroke-width=".8"/>`; break;
+    case 5: // Apprentice Hood
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#46648f"/>`; break;
+    case 6: // Gold Circlet
+      hat = `<path d="M40,41 Q60,34.5 80,41" stroke="${gold}" stroke-width="2.6" fill="none"/><path d="M60,34 l3,4 -3,4 -3,-4 Z" fill="#e14b5a"/>`; break;
+    case 7: // Wizard Hat
+      hat = `<ellipse cx="60" cy="30" rx="27" ry="6.5" fill="#5b3fa8"/><path d="M39,29 L60,-6 L81,29 Q60,22 39,29 Z" fill="#6a4ac2"/><path d="M44,24 Q60,19 76,24" stroke="${gold}" stroke-width="2.4" fill="none"/><path d="M64,6 l1.6,3.2 3.4,.4 -2.5,2.4 .6,3.4 -3.1,-1.7 -3.1,1.7 .6,-3.4 -2.5,-2.4 3.4,-.4 Z" fill="${gold}"/>`; break;
+    case 8: // Leather Hood
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#6b4e32"/><path d="M40,58 Q38,34 60,26 Q82,34 80,58" stroke="${shade('#6b4e32',.75)}" stroke-width="1.5" fill="none"/>`; break;
+    case 9: // Feathered Cap
+      hat = `<path d="M38,42 Q40,20 62,21 Q84,24 81,40 Q60,30 38,42 Z" fill="#4c7a5c"/><ellipse cx="79" cy="24" rx="10" ry="3" fill="#c23040" transform="rotate(-38 79 24)"/><path d="M71,30 L87,18" stroke="#8a2430" stroke-width="1" opacity=".7"/>`; break;
+    case 10: // Antler Crown
+      hat = `<path d="M40,40 Q60,34 80,40" stroke="#6b4e32" stroke-width="3" fill="none"/><path d="M44,38 Q40,26 42,16 M44,38 Q36,30 32,26 M44,38 Q46,26 50,22" stroke="#a8895f" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M76,38 Q80,26 78,16 M76,38 Q84,30 88,26 M76,38 Q74,26 70,22" stroke="#a8895f" stroke-width="2.2" fill="none" stroke-linecap="round"/>`; break;
+    case 11: // Crown of Legends
+      hat = `<path d="M40,36 L44,20 L52,31 L60,15 L68,31 L76,20 L80,36 Q60,29.5 40,36 Z" fill="${goldG}" stroke="#c99a1e"/><circle cx="60" cy="26" r="2.2" fill="#e14b5a"/><circle cx="48" cy="29" r="1.6" fill="#2f5d8a"/><circle cx="72" cy="29" r="1.6" fill="#2f5d8a"/>`; break;
+    case 12: // Dark Cowl
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#3a3d46"/>`; break;
+    case 13: // Shadow Mask — face wrap below the eyes
+      hat = `<path d="M40,56 Q60,50 80,56 L80,64 Q72,76 60,77 Q48,76 40,64 Z" fill="#2e3138"/><path d="M40,58 L34,62 M80,58 L86,62" stroke="#2e3138" stroke-width="3"/>`; break;
+    case 14: // Nightveil Hood — deep hood, shadowed brow
+      hat = `<path d="M33,90 Q24,28 60,15 Q96,28 87,90 Q88,48 60,32 Q32,48 33,90 Z" fill="#1f2128"/><path d="M40,40 Q60,32 80,40 L80,45 Q60,38 40,45 Z" fill="#0d0e12" opacity=".8"/><path d="M33,88 Q26,34 60,19" stroke="#6b4fd8" stroke-width="1" fill="none" opacity=".5"/>`; break;
+    case 15: // Prayer Hood
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#cfc8b4"/><path d="M36,70 Q30,40 60,24" stroke="#b3a276" stroke-width="1.2" fill="none"/>`; break;
+    case 16: // Blessed Circlet — gold band, radiant gem
+      hat = `<path d="M40,41 Q60,34.5 80,41" stroke="${gold}" stroke-width="2.6" fill="none"/><circle cx="60" cy="37.5" r="2.6" fill="#fff8e0" stroke="${gold}" stroke-width="1.2"/><path d="M60,32.5 L60,30.5 M55,34 L53.6,32.6 M65,34 L66.4,32.6" stroke="${gold}" stroke-width="1.3"/>`; break;
+    case 17: // Grand Mitre — tall arched cap
+      hat = `<path d="M44,40 Q44,10 60,2 Q76,10 76,40 Q60,33 44,40 Z" fill="#f0ead8" stroke="#d9cba0"/><path d="M46,34 Q60,27 74,34" stroke="${gold}" stroke-width="2.4" fill="none"/><circle cx="60" cy="16" r="3.2" fill="${gold}"/><path d="M60,10.5 L60,8.5 M60,21.5 L60,23.5 M54.5,16 L52.5,16 M65.5,16 L67.5,16" stroke="${gold}" stroke-width="1.4"/>`; break;
+  }
+
+  // --- Lips (skin-aware tone, sculpted) ---
+  const lip = shade(fem ? '#c06258' : '#b57767', 1 - av.skin * 0.055);
+  const mouth = `
+    <path d="M54,69.4 Q57,68.2 59.5,69 Q60,68.8 60.5,69 Q63,68.2 66,69.4 Q63.2,70.1 60,69.9 Q56.8,70.1 54,69.4 Z" fill="${shade(lip,.82)}"/>
+    <path d="M55,69.9 Q60,${fem ? 74 : 73} 65,69.9 Q60,${fem ? 71.6 : 71.2} 55,69.9 Z" fill="${lip}"/>
+    <path d="M57.4,71.6 Q60,72.6 62.6,71.6" stroke="#fff" stroke-width=".8" opacity=".28" fill="none"/>
+    <path d="M54.2,69.2 Q60,70.8 65.8,69.2" stroke="${shade(lip,.5)}" stroke-width=".7" fill="none"/>
+    <ellipse cx="60" cy="${fem ? 76.4 : 76}" rx="4.5" ry="1.1" fill="#000" opacity=".05"/>`;
+  // --- Nose (bridge shading, nostrils, highlight) ---
+  const nose = `
+    <path d="M57.8,50 C57.2,55 56.8,58.5 56,60.8" stroke="${skinD}" stroke-width="1" opacity=".4" fill="none"/>
+    <path d="M60.8,50 C61,55.5 61.4,58.5 62.4,60.8" stroke="#fff" stroke-width="1" opacity=".14" fill="none"/>
+    <path d="M56,60.8 Q57.4,63.4 60,63.2 Q62.6,63.4 64,60.8" stroke="${skinD}" stroke-width="1" opacity=".5" fill="none"/>
+    <path d="M56.6,62.4 Q57.4,63 58.2,62.7 M63.4,62.4 Q62.6,63 61.8,62.7" stroke="${shade(skin,.6)}" stroke-width=".9" fill="none" stroke-linecap="round"/>
+    <ellipse cx="60" cy="64.8" rx="4" ry="1" fill="#000" opacity=".05"/>`;
+  // --- Face shading (clipped to head) ---
+  const faceShade = `<g clip-path="url(#headClip_${uid})">
+    <path d="M74,32 Q82,48 76,66 Q72,76 64,80 L82,80 L82,28 Z" fill="#000" opacity=".05"/>
+    <ellipse cx="47" cy="42" rx="10" ry="8" fill="#fff" opacity=".06"/>
+    <ellipse cx="45" cy="59" rx="4.5" ry="7" fill="#000" opacity=".05"/>
+    <ellipse cx="75" cy="59" rx="4.5" ry="7" fill="#000" opacity=".06"/>
+    <path d="M44,45.5 Q51.5,43 57,45.5 L57,48 L44,48 Z" fill="#000" opacity=".04"/>
+    <path d="M63,45.5 Q68.5,43 76,45.5 L76,48 L63,48 Z" fill="#000" opacity=".04"/>
+    <ellipse cx="47.5" cy="60.5" rx="4" ry="2.4" fill="#d9836b" opacity="${fem ? .26 : .14}"/>
+    <ellipse cx="72.5" cy="60.5" rx="4" ry="2.4" fill="#d9836b" opacity="${fem ? .26 : .14}"/>
+  </g>`;
+  const neckW = fem ? 10 : 14, neckX = fem ? 55 : 53;
+  const neck = `<rect x="${neckX}" y="70" width="${neckW}" height="24" rx="4" fill="${skinD}"/>
+    <path d="M${neckX},74 Q60,80 ${neckX + neckW},74 L${neckX + neckW},70 L${neckX},70 Z" fill="#000" opacity=".18"/>`;
+  const ear = (x, m) => `<ellipse cx="${x}" cy="54" rx="3.4" ry="5.4" fill="${skinG}"/>
+    <path d="M${x - 1.2*m},51 Q${x + 1.8*m},52.5 ${x - .2*m},56.5" stroke="${skinD}" stroke-width=".9" fill="none" opacity=".55"/>`;
+  const outfitG = fem ? `<g transform="translate(60,0) scale(.92,1) translate(-60,0)">${outfit}</g>` : outfit;
+  const earX = fem ? [41, 79] : [39.8, 80.2];
+  return `<svg viewBox="0 0 120 122" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="headClip_${uid}"><path d="${headPath}"/></clipPath>
+      <radialGradient id="skin_${uid}" cx="42%" cy="34%" r="78%">
+        <stop offset="0%" stop-color="${shade(skin,1.08)}"/><stop offset="55%" stop-color="${skin}"/><stop offset="100%" stop-color="${shade(skin,.8)}"/>
+      </radialGradient>
+      <linearGradient id="hair_${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${shade(hc,1.22)}"/><stop offset="45%" stop-color="${hc}"/><stop offset="100%" stop-color="${shade(hc,.58)}"/>
+      </linearGradient>
+      <linearGradient id="metal_${uid}" x1="0" y1="0" x2=".3" y2="1">
+        <stop offset="0%" stop-color="#d6dae0"/><stop offset="50%" stop-color="#98a1ac"/><stop offset="100%" stop-color="#5f6873"/>
+      </linearGradient>
+      <linearGradient id="gold_${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffe08a"/><stop offset="55%" stop-color="#f5c542"/><stop offset="100%" stop-color="#b8860b"/>
+      </linearGradient>
+      <linearGradient id="cloth_${uid}" x1="0" y1="0" x2=".25" y2="1">
+        <stop offset="0%" stop-color="${shade(oc,1.12)}"/><stop offset="55%" stop-color="${oc}"/><stop offset="100%" stop-color="${shade(oc,.68)}"/>
+      </linearGradient>
+      <radialGradient id="iris_${uid}" cx="40%" cy="38%" r="70%">
+        <stop offset="0%" stop-color="${shade(ec,1.55)}"/><stop offset="60%" stop-color="${ec}"/><stop offset="100%" stop-color="${shade(ec,.45)}"/>
+      </radialGradient>
+    </defs>
+    ${hairBack}
+    ${neck}
+    ${outfitG}
+    ${ear(earX[0], 1)}
+    ${ear(earX[1], -1)}
+    <path d="${headPath}" fill="${skinG}"/>
+    ${faceShade}
+    ${brows}${eye(51.5, 1)}${eye(68.5, -1)}${lashes}
+    ${nose}
+    ${mouth}
+    ${beard}${hairFront}${hat}
+  </svg>`;
+}
+
+/* ================= Streaks ================= */
+function today() { return new Date().toISOString().slice(0,10); }
+function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+function currentStreak() {
+  const dates = [...new Set(state.logs.map(l => l.date))].sort().reverse();
+  if (!dates.length) return 0;
+  // streak alive if last log is today or yesterday
+  if (daysBetween(dates[0], today()) > 1) return 0;
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    if (daysBetween(dates[i], dates[i-1]) === 1) streak++;
+    else break;
+  }
+  return streak;
+}
+function multiplier() { // +10% per streak day beyond the first, cap 2x
+  return Math.min(1 + Math.max(currentStreak() - 1, 0) * 0.1, 2);
+}
+
+/* ================= Derived stats ================= */
+function totalPages() { return state.logs.reduce((s,l) => s + l.pages, 0); }
+function finishedBooks() { return state.books.filter(b => b.done); }
+
+/* ================= Quests & End Bosses =================
+   Each book is a 3-stage adventure: Quest 1 at ⅓, Quest 2 at ⅔,
+   and the End Boss — finishing the book. */
+const BOSS_EMOJIS = ['👹','👺','🧟','🐺','🦂','🐍','🧛','🦑','😈','🐉'];
+function bossEmoji(b) { return BOSS_EMOJIS[b.id % BOSS_EMOJIS.length]; }
+function questTargets(b) { // milestone pages before the end boss (handles tiny books)
+  return [Math.floor(b.pages / 3), Math.floor(b.pages * 2 / 3)]
+    .filter((t, i, a) => t >= 1 && t < b.pages && a.indexOf(t) === i);
+}
+function questStages(b) { return questTargets(b).length + 1; } // + end boss
+function questsDone() {
+  return state.books.reduce((s, b) => s + (b.quests || 0) + (b.done ? 1 : 0), 0);
+}
+function endBossesSlain() { return finishedBooks().length; }
+
+/* ================= XP Decay =================
+   After 2 idle days, XP starts to fade — slowly at first, then faster.
+   Loss on idle day d (d >= 3): 10 × (d-2)², capped at 1,000 XP/day.
+   Day 3: -10 · Day 5: -90 · Day 7: -250 · Day 12: -1,000/day */
+function lastReadDate() {
+  const d = [...new Set(state.logs.map(l => l.date))].sort();
+  return d.length ? d[d.length - 1] : null;
+}
+function decayForIdleDay(idle) {
+  return idle >= 3 ? Math.min(10 * Math.pow(idle - 2, 2), 1000) : 0;
+}
+function applyDecay() {
+  const last = lastReadDate();
+  if (!last) { state.decayThrough = today(); return 0; }
+  const from = state.decayThrough && state.decayThrough > last ? state.decayThrough : last;
+  let lost = 0;
+  const cursor = new Date(from + 'T00:00:00Z');
+  const end = new Date(today() + 'T00:00:00Z');
+  while (cursor < end) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    lost += decayForIdleDay(daysBetween(last, cursor.toISOString().slice(0,10)));
+  }
+  state.decayThrough = today();
+  if (lost > 0) state.xp = Math.max(0, state.xp - lost);
+  return lost;
+}
+function biggestDay() {
+  const byDay = {};
+  state.logs.forEach(l => byDay[l.date] = (byDay[l.date]||0) + l.pages);
+  return Math.max(0, ...Object.values(byDay));
+}
+
+/* ================= Achievements ================= */
+const ACHIEVEMENTS = [
+  { id:'first_quest', icon:'📜', name:'The Call to Adventure', desc:'Add your first book quest', test:() => state.books.length >= 1 },
+  { id:'first_blood', icon:'🗡️', name:'First Blood', desc:'Log your first pages', test:() => state.logs.length >= 1 },
+  { id:'p100', icon:'📖', name:'Century Reader', desc:'Read 100 total pages', test:() => totalPages() >= 100 },
+  { id:'p500', icon:'📚', name:'Tome Raider', desc:'Read 500 total pages', test:() => totalPages() >= 500 },
+  { id:'p1000', icon:'🏛️', name:'Living Library', desc:'Read 1,000 total pages', test:() => totalPages() >= 1000 },
+  { id:'p5000', icon:'🌌', name:'Infinite Archive', desc:'Read 5,000 total pages', test:() => totalPages() >= 5000 },
+  { id:'boss1', icon:'👑', name:'Boss Slayer', desc:'Defeat your first end boss (finish a book)', test:() => endBossesSlain() >= 1 },
+  { id:'boss5', icon:'⚔️', name:'Serial Slayer', desc:'Defeat 5 end bosses', test:() => endBossesSlain() >= 5 },
+  { id:'boss10', icon:'🐉', name:'Dragonsbane', desc:'Defeat 10 end bosses', test:() => endBossesSlain() >= 10 },
+  { id:'quest1', icon:'📜', name:'First Steps', desc:'Complete your first quest', test:() => questsDone() >= 1 },
+  { id:'quest15', icon:'🗺️', name:'Seasoned Adventurer', desc:'Complete 15 quests', test:() => questsDone() >= 15 },
+  { id:'quest30', icon:'🏰', name:'Guild Master', desc:'Complete 30 quests', test:() => questsDone() >= 30 },
+  { id:'streak3', icon:'🔥', name:'Kindling', desc:'3-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 3 },
+  { id:'streak7', icon:'🎇', name:'Eternal Flame', desc:'7-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 7 },
+  { id:'streak30', icon:'☄️', name:'Unstoppable', desc:'30-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 30 },
+  { id:'day100', icon:'⚡', name:'Marathon Mind', desc:'Read 100+ pages in one day', test:() => biggestDay() >= 100 },
+  { id:'genres3', icon:'🌈', name:'Genre Hopper', desc:'Finish books in 3 different genres', test:() => new Set(finishedBooks().map(b=>b.genre).filter(Boolean)).size >= 3 },
+  { id:'big_boss', icon:'🏔️', name:'Giant Slayer', desc:'Finish a 500+ page book', test:() => finishedBooks().some(b => b.pages >= 500) },
+];
+function checkAchievements() {
+  for (const a of ACHIEVEMENTS) {
+    if (!state.ach.includes(a.id) && a.test()) {
+      state.ach.push(a.id);
+      toast(`🏅 Achievement unlocked: ${a.name}!`);
+      grantXP(50, true); // silent xp for achievement
+    }
+  }
+}
+
+/* ================= XP ================= */
+function grantXP(amount, silent) {
+  const before = levelInfo(state.xp).lvl;
+  state.xp += amount;
+  const after = levelInfo(state.xp).lvl;
+  if (!silent) toast(`+${amount} XP`);
+  if (after > before) {
+    toast(`🎉 LEVEL UP! You are now level ${after} — ${titleFor(after)}`);
+    confetti(20);
+    const cls = (state.avatar || DEFAULT_AVATAR).class;
+    const gear = [...OUTFITS, ...HEADGEAR].filter(g => g.min > before && g.min <= after && (g.cls === null || g.cls === cls));
+    if (gear.length) toast(`🛡️ New gear unlocked: ${gear.map(g => g.name).join(', ')} — click your avatar!`);
+  }
+}
+
+/* ================= Book search (Open Library + Google Books fallback) ================= */
+let pendingCover = null;
+async function searchBooks() {
+  const q = document.getElementById('fSearch').value.trim();
+  if (!q) return;
+  const box = document.getElementById('searchResults');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="hint">📖 Consulting the great library…</div>';
+  let results = [];
+  try {
+    const r = await fetch('https://openlibrary.org/search.json?limit=6&fields=title,author_name,number_of_pages_median,first_publish_year,cover_i&q=' + encodeURIComponent(q));
+    const data = await r.json();
+    results = (data.docs || []).map(d => ({
+      title: d.title,
+      author: (d.author_name || [])[0] || '',
+      pages: d.number_of_pages_median || null,
+      year: d.first_publish_year || '',
+      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+    }));
+  } catch (e) { /* fall through to Google Books */ }
+  if (!results.length) {
+    try {
+      const r = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=6&q=' + encodeURIComponent(q));
+      const data = await r.json();
+      results = (data.items || []).map(v => {
+        const i = v.volumeInfo || {};
+        return {
+          title: i.title,
+          author: (i.authors || [])[0] || '',
+          pages: i.pageCount || null,
+          year: (i.publishedDate || '').slice(0, 4),
+          cover: i.imageLinks ? i.imageLinks.thumbnail.replace('http://', 'https://') : null,
+        };
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="hint">⚠️ The library is unreachable — check your connection, or enter the book manually below.</div>';
+      return;
+    }
+  }
+  if (!results.length) {
+    box.innerHTML = '<div class="hint">No tomes found. Try another search, or enter it manually below.</div>';
+    return;
+  }
+  searchHits = results;
+  box.innerHTML = results.map((b, i) => `
+    <div class="result" onclick="pickBook(${i})">
+      ${b.cover ? `<img src="${esc(b.cover)}" alt="">` : '<div class="no-cover">📕</div>'}
+      <div><div class="r-t">${esc(b.title)}</div><div class="r-a">${esc(b.author)}${b.year ? ' · ' + b.year : ''}</div></div>
+      <div class="r-p">${b.pages ? b.pages + ' pg' : 'pages?'}</div>
+    </div>`).join('');
+}
+let searchHits = [];
+function pickBook(i) {
+  const b = searchHits[i];
+  document.getElementById('fTitle').value = b.title;
+  document.getElementById('fAuthor').value = b.author;
+  document.getElementById('fPages').value = b.pages || '';
+  pendingCover = b.cover;
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('fSearch').value = '';
+  if (!b.pages) toast('📄 No page count on record — fill it in yourself.');
+  else toast(`📖 "${b.title}" ready — hit + New Quest to accept it!`);
+}
+/* ================= Actions ================= */
+document.getElementById('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const title = document.getElementById('fTitle').value.trim();
+  const pages = parseInt(document.getElementById('fPages').value, 10);
+  if (!title || !pages || pages < 1) return;
+  state.books.push({
+    id: Date.now(), title,
+    author: document.getElementById('fAuthor').value.trim(),
+    genre: document.getElementById('fGenre').value,
+    pages, read: 0, quests: 0, done: false, finishedAt: null, cover: pendingCover, xpEarned: 0
+  });
+  pendingCover = null;
+  e.target.reset();
+  toast(`⚔️ New quest accepted: "${title}"`);
+  afterChange();
+});
+
+function logPages(bookId) {
+  const input = document.getElementById('log-' + bookId);
+  const page = parseInt(input.value, 10);
+  const b = state.books.find(x => x.id === bookId);
+  if (!b || b.done || !page) return;
+  if (page <= b.read) { toast(`⚠️ You're already on page ${b.read} — enter a higher page number.`); return; }
+  const n = Math.min(page, b.pages) - b.read; // damage = pages advanced
+  b.read += n;
+  state.logs.push({ date: today(), pages: n, bookId });
+  state.decayThrough = today(); // reading resets decay
+  state.bestStreak = Math.max(state.bestStreak, currentStreak());
+  const mult = multiplier();
+  const xp = Math.round(n * 2 * mult);
+  b.xpEarned += xp;
+  grantXP(xp, true);
+  toast(`🗡️ ${n} damage dealt! +${xp} XP${mult > 1 ? ` (${mult.toFixed(1)}x streak bonus)` : ''}`);
+
+  // Quests: milestones at ⅓ and ⅔ of the book
+  const targets = questTargets(b);
+  const stages = questStages(b);
+  while (b.quests < targets.length && b.read >= targets[b.quests]) {
+    b.quests++;
+    b.xpEarned += 50;
+    grantXP(50, true);
+    celebrate({
+      title: 'QUEST COMPLETE', emoji: '📜',
+      text: `Quest ${b.quests}/${stages} of "${b.title}" — you reached page ${targets[b.quests - 1]} of ${b.pages}!`,
+      xp: '+50 bonus XP', cover: b.cover,
+      hint: b.quests < targets.length
+        ? `Next quest: reach page ${targets[b.quests]}`
+        : `Final quest: defeat the end boss — finish the book!`
+    });
+  }
+
+  // End boss: finishing the book
+  if (b.read >= b.pages) {
+    b.done = true;
+    b.finishedAt = today();
+    const bonus = 100 + b.pages;
+    b.xpEarned += bonus;
+    grantXP(bonus, true);
+    celebrate({
+      title: 'END BOSS DEFEATED', emoji: bossEmoji(b),
+      text: `The end boss of "${b.title}" (${b.pages} pages) has fallen!`,
+      xp: `+${bonus} bonus XP`, hint: 'Trophy added to your shelf', cover: b.cover
+    });
+  }
+  afterChange();
+}
+
+function abandonQuest(bookId) {
+  const b = state.books.find(x => x.id === bookId);
+  if (!b) return;
+  if (!confirm(`Abandon "${b.title}"? Logged pages & XP are kept.`)) return;
+  state.books = state.books.filter(x => x.id !== bookId);
+  afterChange();
+}
+
+/* ================= AI-painted portraits (Pollinations, free, no key) ================= */
+const SKIN_DESC = ['fair', 'light tan', 'olive', 'tan brown', 'deep brown', 'dark ebony'];
+const HAIR_DESC = ['a shaved bald head', 'buzz-cut {c} hair', 'short neat {c} hair', 'medium-length {c} hair', 'long flowing {c} hair', '{c} hair in a ponytail', 'thick curly {c} hair', '{c} hair tied in a bun'];
+const HAIRCOLOR_DESC = ['black', 'dark brown', 'chestnut brown', 'copper brown', 'golden blonde', 'auburn red', 'silver gray', 'snow white'];
+const EYECOLOR_DESC = ['brown', 'blue', 'green', 'gray'];
+const EXPR_DESC = ['a calm confident expression', 'a piercing narrow-eyed gaze', 'a warm smiling expression', 'a fierce determined expression'];
+const BEARD_DESC = ['', ' and light stubble', ' and a mustache', ' and a full beard'];
+const CLASS_DESC = ['warrior', 'mage', 'ranger', 'rogue', 'priest'];
+
+const AI_MODEL = 'black-forest-labs/flux-2-klein-4b'; // fast photoreal via Puter.js (no key; user approves Puter once)
+function aiPrompt(av) {
+  const hair = HAIR_DESC[av.hair].replace('{c}', HAIRCOLOR_DESC[av.hairColor]);
+  const gender = av.build === 1 ? 'woman' : 'man';
+  let gear = `wearing ${OUTFITS[av.outfit].name}`;
+  if (av.hat === 1) gear += ' and round reading glasses';
+  else if (av.hat > 1) gear += ` and a ${HEADGEAR[av.hat].name}`;
+  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]} with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, dark castle library background, film still, award-winning photography.`
+    + (state.aiSeedBump ? ` Variation ${state.aiSeedBump}.` : '');
+}
+function hashStr(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function aiKey(av) { return hashStr(aiPrompt(av)).toString(36); }
+
+let aiInflight = null, aiTimer = null;
+function ensurePortrait(av) {
+  if (state.avatarMode !== 'ai' || !window.puter) return;
+  const key = aiKey(av);
+  state.aiCache = state.aiCache || {};
+  if (state.aiCache[key] || aiInflight === key) return;
+  clearTimeout(aiTimer); // debounce rapid editor changes
+  aiTimer = setTimeout(async () => {
+    aiInflight = key;
+    try {
+      const img = await puter.ai.txt2img(aiPrompt(av), { model: AI_MODEL });
+      state.aiCache[key] = img.src;
+      const keys = Object.keys(state.aiCache);
+      if (keys.length > 24) keys.slice(0, keys.length - 24).forEach(k => delete state.aiCache[k]);
+      save();
+      if (aiKey(effectiveAvatar()) === key) {
+        render();
+        if (document.getElementById('avatarModal').classList.contains('show')) renderEditor();
+      }
+    } catch (e) { /* offline or declined — vector art remains */ }
+    aiInflight = null;
+  }, 450);
+}
+function aiImgError(el, key) { // expired image URL — drop cache and repaint
+  if (state.aiCache) delete state.aiCache[key];
+  save(); el.remove();
+  ensurePortrait(effectiveAvatar());
+}
+/* Vector art renders instantly; the photoreal portrait fades in over it when ready. */
+function avatarHTML(av) {
+  const svg = buildAvatarSVG(av);
+  if (state.avatarMode !== 'ai') return svg;
+  const key = aiKey(av);
+  const url = (state.aiCache || {})[key];
+  ensurePortrait(av);
+  if (!url) return `<div style="position:relative; width:100%; height:100%;">${svg}
+    <div style="position:absolute; right:2px; bottom:2px; font-size:11px; animation: pulse 1.2s infinite;">🎨</div></div>`;
+  return `<div style="position:relative; width:100%; height:100%;">${svg}
+    <img src="${esc(url)}" alt="" onerror="aiImgError(this,'${key}')"
+      style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:inherit;"></div>`;
+}
+function setPortraitMode(m) { state.avatarMode = m; save(); renderEditor(); render(); }
+function rerollPortrait() {
+  state.aiSeedBump = (state.aiSeedBump || 0) + 1;
+  save(); renderEditor(); render();
+  toast('🎲 Commissioning a new portrait…');
+}
+
+/* ================= Avatar editor ================= */
+const EDITOR_SLOTS = [
+  { key:'build', label:'Build', type:'chip', values: BUILDS },
+  { key:'class', label:'Class', type:'chip', values: CLASSES },
+  { key:'skin', label:'Skin tone', type:'color', values: SKINS },
+  { key:'hair', label:'Hair style', type:'chip', values: HAIR_STYLES },
+  { key:'hairColor', label:'Hair color', type:'color', values: HAIR_COLORS },
+  { key:'eyes', label:'Eyes', type:'chip', values: EYE_STYLES },
+  { key:'eyeColor', label:'Eye color', type:'color', values: EYE_COLORS },
+  { key:'beard', label:'Facial hair', type:'chip', values: BEARDS },
+  { key:'outfit', label:'Outfit', type:'gear', values: OUTFITS },
+  { key:'hat', label:'Headgear', type:'gear', values: HEADGEAR },
+];
+function openAvatarEditor() {
+  state.avatar = { ...DEFAULT_AVATAR, ...(state.avatar || {}) };
+  renderEditor();
+  document.getElementById('avatarModal').classList.add('show');
+}
+function closeAvatarEditor() {
+  document.getElementById('avatarModal').classList.remove('show');
+  save(); render();
+}
+function setAvatarPart(key, i) {
+  const slot = EDITOR_SLOTS.find(s => s.key === key);
+  if (slot.type === 'gear' && slot.values[i].min > playerLevel()) {
+    toast(`🔒 ${slot.values[i].name} unlocks at level ${slot.values[i].min}`);
+    return;
+  }
+  state.avatar[key] = i;
+  if (key === 'class') { // changing class re-equips that class's gear line
+    state.avatar.outfit = classDefaultOutfit(i, playerLevel());
+    const h = HEADGEAR[state.avatar.hat];
+    if (h.cls !== null && h.cls !== i) state.avatar.hat = 0;
+  }
+  save(); renderEditor(); render();
+}
+function renderEditor() {
+  document.getElementById('edPreview').innerHTML = avatarHTML(effectiveAvatar());
+  const lvl = playerLevel();
+  const rows = document.getElementById('editorRows');
+  rows.innerHTML = '';
+  // Portrait style row
+  const ai = state.avatarMode === 'ai';
+  const styleRow = document.createElement('div');
+  styleRow.className = 'ed-row';
+  styleRow.innerHTML = `<div class="lbl">Portrait style</div><div class="chips">
+    <div class="chip${ai ? ' sel' : ''}" onclick="setPortraitMode('ai')">🎨 AI Painted</div>
+    <div class="chip${ai ? '' : ' sel'}" onclick="setPortraitMode('vector')">📐 Vector (offline)</div>
+    ${ai ? `<div class="chip" onclick="rerollPortrait()">🎲 Reroll painting</div>` : ''}</div>
+    ${ai ? `<div class="hint" style="margin-top:6px">Photoreal portrait generated from your exact choices — changing anything repaints (~2s). First time, Puter asks a one-time permission. Reroll if you don't love it.</div>` : ''}`;
+  rows.appendChild(styleRow);
+  for (const slot of EDITOR_SLOTS) {
+    const row = document.createElement('div');
+    row.className = 'ed-row';
+    let opts = '';
+    slot.values.forEach((v, i) => {
+      const sel = (state.avatar[slot.key] === i) ? ' sel' : '';
+      if (slot.type === 'color') {
+        opts += `<div class="swatch${sel}" style="background:${v}" onclick="setAvatarPart('${slot.key}',${i})"></div>`;
+      } else if (slot.type === 'gear') {
+        if (v.cls !== null && v.cls !== state.avatar.class) return; // show only your class's gear line
+        const locked = v.min > lvl;
+        opts += `<div class="chip${sel}${locked ? ' locked' : ''}" onclick="setAvatarPart('${slot.key}',${i})">${locked ? '🔒 ' : ''}${v.name}${locked ? ` · Lv ${v.min}` : ''}</div>`;
+      } else {
+        opts += `<div class="chip${sel}" onclick="setAvatarPart('${slot.key}',${i})">${v}</div>`;
+      }
+    });
+    row.innerHTML = `<div class="lbl">${slot.label}</div><div class="chips">${opts}</div>`;
+    rows.appendChild(row);
+  }
+}
+document.getElementById('avatar').addEventListener('click', openAvatarEditor);
+document.getElementById('fSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); searchBooks(); }
+});
+
+document.getElementById('charName').addEventListener('click', () => {
+  const n = prompt('Choose your hero name:', state.name);
+  if (n && n.trim()) { state.name = n.trim(); afterChange(); }
+});
+
+/* ================= Celebrations (queued) ================= */
+const celebrationQueue = [];
+function celebrate(c) {
+  celebrationQueue.push(c);
+  if (!document.getElementById('overlay').classList.contains('show')) showNextCelebration();
+}
+function showNextCelebration() {
+  const c = celebrationQueue.shift();
+  if (!c) return;
+  document.getElementById('victoryTitle').textContent = c.title;
+  document.getElementById('victoryEmoji').textContent = c.emoji;
+  const vc = document.getElementById('victoryCover');
+  if (c.cover) { vc.src = c.cover; vc.style.display = 'block'; } else vc.style.display = 'none';
+  document.getElementById('victoryText').textContent = c.text;
+  document.getElementById('victoryXP').textContent = c.xp;
+  document.getElementById('victoryHint').textContent = c.hint || '';
+  document.getElementById('overlay').classList.add('show');
+  confetti(40);
+}
+function closeVictory() {
+  document.getElementById('overlay').classList.remove('show');
+  if (celebrationQueue.length) setTimeout(showNextCelebration, 250);
+}
+
+function confetti(n) {
+  const chars = ['✨','⭐','🎉','💫','📖'];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti';
+    el.textContent = chars[Math.floor(Math.random() * chars.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.animationDuration = (2 + Math.random() * 2) + 's';
+    el.style.animationDelay = (Math.random() * .5) + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const box = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+/* ================= Render ================= */
+function render() {
+  const info = levelInfo(state.xp);
+  document.getElementById('charName').textContent = state.name + (info.lvl < 5 ? ' the Novice' : info.lvl < 12 ? ' the Adept' : ' the Legendary');
+  document.getElementById('charTitle').textContent = titleFor(info.lvl);
+  document.getElementById('lvlBadge').textContent = 'LV ' + info.lvl;
+  document.getElementById('xpBar').style.width = (info.rem / info.need * 100) + '%';
+  document.getElementById('xpLabel').textContent = `${info.rem} / ${info.need} XP`;
+  document.getElementById('avatar').innerHTML = avatarHTML(effectiveAvatar());
+
+  document.getElementById('stWis').textContent = totalPages().toLocaleString();
+  document.getElementById('stMight').textContent = endBossesSlain();
+  document.getElementById('stQuests').textContent = questsDone();
+  const cs = currentStreak();
+  document.getElementById('stStreak').textContent = cs > 0 ? cs + ' 🔥' : '0';
+  document.getElementById('stBest').textContent = Math.max(state.bestStreak, cs);
+
+  // Decay warning
+  const last = lastReadDate();
+  const hint = document.getElementById('decayHint');
+  if (last) {
+    const idle = daysBetween(last, today());
+    if (idle >= 2) {
+      const tomorrowLoss = decayForIdleDay(idle + 1);
+      hint.style.display = 'block';
+      hint.textContent = `⚠️ ${idle} days without reading — ${idle >= 3 ? 'your XP is fading!' : ''} Miss tomorrow and you lose ${tomorrowLoss} XP.`;
+    } else hint.style.display = 'none';
+  }
+
+  // Quests
+  const active = state.books.filter(b => !b.done);
+  const list = document.getElementById('questList');
+  list.innerHTML = active.length ? '' : '<div class="empty">No active quests. Add a book above to face your first boss! ⚔️</div>';
+  for (const b of active) {
+    const pct = b.read / b.pages * 100;
+    const targets = questTargets(b);
+    const stages = questStages(b);
+    const onFinal = b.quests >= targets.length;
+    const stageTag = onFinal
+      ? `<div class="boss-tag">${bossEmoji(b)} END BOSS · ${b.pages - b.read} HP</div>`
+      : `<div class="boss-tag" style="color: var(--green)">📜 QUEST ${b.quests + 1}/${stages} · next: p.${targets[b.quests]}</div>`;
+    const ticks = targets.map(t =>
+      `<div style="position:absolute; left:${t / b.pages * 100}%; top:0; bottom:0; width:2px; background:${b.read >= t ? 'var(--gold)' : 'var(--border)'};"></div>`).join('');
+    const div = document.createElement('div');
+    div.className = 'quest';
+    div.innerHTML = `
+      <div class="quest-top">
+        <div style="display:flex; gap:12px; align-items:center;">
+          ${b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="">` : ''}
+          <div><h3>${esc(b.title)}</h3><div class="author">${esc(b.author || 'Unknown author')}${b.genre ? ' · ' + esc(b.genre) : ''}</div></div>
+        </div>
+        ${stageTag}
+      </div>
+      <div class="hp-row">
+        <div class="hp-bar" style="position:relative"><div style="width:${pct}%; background: linear-gradient(90deg, ${onFinal ? '#b0313e, var(--hp)' : '#2a9d6f, var(--green)'})"></div>${ticks}</div>
+        <div class="hp-label">${b.read} / ${b.pages} pages</div>
+      </div>
+      <div class="quest-actions">
+        <input type="number" id="log-${b.id}" min="${b.read + 1}" max="${b.pages}" placeholder="On page…" title="Enter the page you're on now">
+        <button onclick="logPages(${b.id})">🗡️ Deal Damage</button>
+        <button class="danger" onclick="abandonQuest(${b.id})">Abandon</button>
+      </div>`;
+    list.appendChild(div);
+  }
+
+  // Achievements
+  const grid = document.getElementById('achGrid');
+  grid.innerHTML = '';
+  for (const a of ACHIEVEMENTS) {
+    const unlocked = state.ach.includes(a.id);
+    const div = document.createElement('div');
+    div.className = 'ach' + (unlocked ? ' unlocked' : '');
+    div.innerHTML = `<div class="icon">${a.icon}</div><div><div class="name">${a.name}</div><div class="desc">${a.desc}</div></div>`;
+    grid.appendChild(div);
+  }
+
+  // Library
+  const shelf = document.getElementById('shelf');
+  const done = finishedBooks();
+  shelf.innerHTML = '';
+  document.getElementById('shelfEmpty').style.display = done.length ? 'none' : 'block';
+  for (const b of done) {
+    const div = document.createElement('div');
+    div.className = 'trophy-book';
+    div.innerHTML = `${b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="">` : '<div class="emoji">🏆</div>'}<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')}</div><div class="d">${fmtDate(b.finishedAt)}</div><div class="d">${questStages(b)} quests · +${(b.xpEarned || 0).toLocaleString()} XP</div>`;
+    shelf.appendChild(div);
+  }
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function afterChange() {
+  state.bestStreak = Math.max(state.bestStreak, currentStreak());
+  checkAchievements();
+  save();
+  render();
+}
+
+/* ================= Tabs ================= */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('section').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.tab).classList.add('active');
+}));
+
+/* ================= Cover backfill (books added before search existed) ================= */
+async function backfillCovers() {
+  const missing = state.books.filter(b => !b.cover && !b.coverTried);
+  for (const b of missing.slice(0, 5)) { // gentle on the API
+    b.coverTried = true;
+    try {
+      const q = encodeURIComponent(b.title + (b.author ? ' ' + b.author : ''));
+      const r = await fetch(`https://openlibrary.org/search.json?limit=1&fields=cover_i&q=${q}`);
+      const data = await r.json();
+      const id = data.docs && data.docs[0] && data.docs[0].cover_i;
+      if (id) b.cover = `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
+    } catch (e) { b.coverTried = false; break; } // offline — retry next visit
+  }
+  save(); render();
+}
+
+/* ================= Reset ================= */
+function resetProgress() {
+  if (!confirm('Erase EVERYTHING — hero, XP, books, streaks, achievements — and start anew?')) return;
+  if (!confirm('Last chance: this cannot be undone. Truly begin a new saga?')) return;
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  mem = null;
+  location.reload();
+}
+
+/* ================= Init ================= */
+// migrate old saves: backfill per-book quest progress without re-celebrating
+for (const b of state.books) {
+  if (b.quests === undefined) b.quests = questTargets(b).filter(t => b.read >= t).length;
+  if (b.xpEarned === undefined) // estimate for books logged before tracking existed (base rate, no streak bonus)
+    b.xpEarned = b.read * 2 + b.quests * 50 + (b.done ? 100 + b.pages : 0);
+}
+const decayed = applyDecay();
+if (decayed > 0) toast(`💀 The Idle Curse drained ${decayed.toLocaleString()} XP! Read today to stop the decay.`);
+save();
+render();
+backfillCovers();
+
+// PWA: offline support (only when served over http/https — harmless otherwise)
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

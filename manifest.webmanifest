@@ -1,0 +1,15 @@
+{
+  "name": "ReadQuest — Level Up Your Reading",
+  "short_name": "ReadQuest",
+  "description": "Turn books into quests, slay end bosses, level up your hero.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0e1a",
+  "theme_color": "#171930",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
