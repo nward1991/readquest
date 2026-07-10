@@ -232,6 +232,16 @@
 <body>
 <div class="wrap">
 
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="stats">🛡️ Hero</button>
+    <button class="tab" data-tab="quests">⚔️ Quest Log</button>
+    <button class="tab" data-tab="achievements">🏅 Achievements</button>
+    <button class="tab" data-tab="library">📚 Trophy Shelf</button>
+  </div>
+
+  <!-- Hero / Stats -->
+  <section id="stats" class="active">
   <!-- Character -->
   <div class="char-card">
     <div class="avatar" id="avatar" title="Click to customize your hero" style="cursor:pointer"></div>
@@ -255,15 +265,15 @@
   </div>
 
 
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab active" data-tab="quests">⚔️ Quests</button>
-    <button class="tab" data-tab="achievements">🏅 Achievements</button>
-    <button class="tab" data-tab="library">📚 Trophy Shelf</button>
+  <!-- Class levels -->
+  <div class="quest" style="margin-top:16px">
+    <h3 style="margin-bottom:10px">🎭 Class Levels</h3>
+    <div id="classLevels"></div>
   </div>
+  </section>
 
-  <!-- Quests -->
-  <section id="quests" class="active">
+  <!-- Quest Log -->
+  <section id="quests">
     <form class="add-form" id="addForm">
       <div style="grid-column: 1 / -1; display: flex; gap: 8px;">
         <input id="fSearch" placeholder="🔍 Search the great library… (title or author)" style="flex:1">
@@ -1067,6 +1077,12 @@ function logPages(bookId) {
   afterChange();
 }
 
+let expandedQuest = null;
+function toggleQuest(bookId) {
+  expandedQuest = expandedQuest === bookId ? null : bookId;
+  render();
+}
+
 function abandonQuest(bookId) {
   const b = state.books.find(x => x.id === bookId);
   if (!b) return;
@@ -1322,41 +1338,68 @@ function render() {
   document.getElementById('stStreak').textContent = cs > 0 ? cs + ' 🔥' : '0';
   document.getElementById('stBest').textContent = Math.max(state.bestStreak, cs);
 
-  // Quests
+  // Quest Log — collapsed cards, click to expand
   const active = state.books.filter(b => !b.done);
   const list = document.getElementById('questList');
-  list.innerHTML = active.length ? '' : '<div class="empty">No active quests. Add a book above to face your first boss! ⚔️</div>';
+  list.innerHTML = active.length ? '' : '<div class="empty">Your quest log is empty. Add a book above to begin an adventure! ⚔️</div>';
   for (const b of active) {
     const pct = b.read / b.pages * 100;
     const targets = questTargets(b);
     const stages = questStages(b);
     const onFinal = b.quests >= targets.length;
+    const open = expandedQuest === b.id;
     const stageTag = onFinal
       ? `<div class="boss-tag">${bossEmoji(b)} END BOSS · ${b.pages - b.read} HP</div>`
       : `<div class="boss-tag" style="color: var(--green)">📜 QUEST ${b.quests + 1}/${stages} · next: p.${targets[b.quests]}</div>`;
     const ticks = targets.map(t =>
       `<div style="position:absolute; left:${t / b.pages * 100}%; top:0; bottom:0; width:2px; background:${b.read >= t ? 'var(--gold)' : 'var(--border)'};"></div>`).join('');
-    const div = document.createElement('div');
-    div.className = 'quest';
-    div.innerHTML = `
-      <div class="quest-top">
-        <div style="display:flex; gap:12px; align-items:center;">
-          ${b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="">` : ''}
-          <div><h3>${esc(b.title)}</h3><div class="author">${esc(b.author || 'Unknown author')}${b.genre ? ' · ' + esc(b.genre) : ''}</div></div>
-        </div>
-        ${stageTag}
-      </div>
-      <div class="hp-row">
-        <div class="hp-bar" style="position:relative"><div style="width:${pct}%; background: linear-gradient(90deg, ${onFinal ? '#b0313e, var(--hp)' : '#2a9d6f, var(--green)'})"></div>${ticks}</div>
-        <div class="hp-label">${b.read} / ${b.pages} pages</div>
+    let detail = '';
+    if (open) {
+      const stageRows = targets.map((t, i) => {
+        const done = b.quests > i;
+        const cur = !done && b.quests === i;
+        return `<div style="display:flex; gap:8px; padding:5px 0; color:${done ? 'var(--green)' : cur ? 'var(--text)' : 'var(--dim)'}">
+          <span>${done ? '✅' : cur ? '🗡️' : '🔒'}</span><span>Quest ${i + 1} — reach page ${t}${done ? ' · complete' : cur ? ' · in progress' : ''}</span></div>`;
+      }).join('');
+      const bossRow = `<div style="display:flex; gap:8px; padding:5px 0; color:${onFinal ? 'var(--hp)' : 'var(--dim)'}">
+        <span>${onFinal ? bossEmoji(b) : '🔒'}</span><span>End boss — finish all ${b.pages} pages${onFinal ? ' · FACE THE BOSS' : ''}</span></div>`;
+      detail = `
+      <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:8px;">
+        ${stageRows}${bossRow}
+        <div class="hint">${b.xpEarned ? `+${b.xpEarned.toLocaleString()} XP earned on this quest so far` : 'No XP earned yet — log some pages!'}</div>
       </div>
       <div class="quest-actions">
         <input type="number" id="log-${b.id}" min="${b.read + 1}" max="${b.pages}" placeholder="On page…" title="Enter the page you're on now">
         <button onclick="logPages(${b.id})">🗡️ Deal Damage</button>
         <button class="danger" onclick="abandonQuest(${b.id})">Abandon</button>
       </div>`;
+    }
+    const div = document.createElement('div');
+    div.className = 'quest';
+    div.innerHTML = `
+      <div class="quest-top" onclick="toggleQuest(${b.id})" style="cursor:pointer" title="${open ? 'Collapse' : 'Expand'} quest">
+        <div style="display:flex; gap:12px; align-items:center;">
+          ${b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="">` : ''}
+          <div><h3>${esc(b.title)}</h3><div class="author">${esc(b.author || 'Unknown author')}${b.genre ? ' · ' + esc(b.genre) : ''}</div></div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">${stageTag}<span style="color:var(--dim)">${open ? '▲' : '▼'}</span></div>
+      </div>
+      <div class="hp-row">
+        <div class="hp-bar" style="position:relative"><div style="width:${pct}%; background: linear-gradient(90deg, ${onFinal ? '#b0313e, var(--hp)' : '#2a9d6f, var(--green)'})"></div>${ticks}</div>
+        <div class="hp-label">${b.read} / ${b.pages} pages</div>
+      </div>
+      ${detail}`;
     list.appendChild(div);
   }
+
+  // Class levels (Hero tab)
+  const cl = document.getElementById('classLevels');
+  cl.innerHTML = CLASSES.map((c, i) => {
+    const li = levelInfo(state.classXP[i] || 0);
+    const cur = i === curClass();
+    return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); ${cur ? 'color:var(--gold); font-weight:700;' : 'color:var(--dim);'}">
+      <span>${c}${cur ? ' · active' : ''}</span><span>LV ${li.lvl} · ${(state.classXP[i] || 0).toLocaleString()} XP</span></div>`;
+  }).join('');
 
   // Achievements
   const grid = document.getElementById('achGrid');
