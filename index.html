@@ -1109,7 +1109,7 @@ function aiPrompt(av) {
   else if (av.hat > 1) gear += ` and a ${HEADGEAR[av.hat].name}`;
   gear += `, ${WEAPONS[av.weapon === undefined ? 0 : av.weapon].desc}`;
   const backdrop = BACKDROPS[av.backdrop === undefined ? 0 : av.backdrop].desc;
-  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]}, ${AGE_DESC[av.age === undefined ? 1 : av.age]}, with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, ${backdrop}, film still, award-winning photography.`
+  return `Stylized painted fantasy character portrait, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]}, ${AGE_DESC[av.age === undefined ? 1 : av.age]}, with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. AAA MMO splash art style, painterly brushwork, heroic stylized proportions, rich saturated colors, dramatic rim lighting, detailed but not photorealistic, epic video game key art, ${backdrop}.`
     + (state.aiSeedBump ? ` Variation ${state.aiSeedBump}.` : '');
 }
 function hashStr(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
