@@ -351,6 +351,8 @@ function load() {
   if (!s.avatar) s.avatar = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
   else if (s.avatar.class === undefined) { s.avatar.build = 0; s.avatar.class = 0; s.avatar.outfit = 0; s.avatar.hat = 0; } // pre-class saves
   if (s.avatar.age === undefined) s.avatar.age = 1;
+  if (s.avatar.weapon === undefined) s.avatar.weapon = 0;
+  if (s.avatar.backdrop === undefined) s.avatar.backdrop = 0;
   if (s.avatarMode === undefined) s.avatarMode = 'ai';
   if (s.aiSeedBump === undefined) s.aiSeedBump = 0;
   if (!s.aiCache) s.aiCache = {};
@@ -390,58 +392,130 @@ const BEARDS = ['Clean-shaven','Stubble','Mustache','Full beard'];
 const BUILDS = ['Masculine','Feminine'];
 const CLASSES = ['⚔️ Warrior','🪄 Mage','🏹 Ranger','🗡️ Rogue','✨ Priest'];
 /* Gear follows real high-fantasy class progressions — a squire becomes a knight,
-   an apprentice becomes an archmage. cls: 0=Warrior 1=Mage 2=Ranger, null=any class */
+   an apprentice becomes an archmage. cls: 0=Warrior 1=Mage 2=Ranger 3=Rogue 4=Priest, null=any.
+   Unlock via `min` (level) or `ach` (achievement id). `art` picks the vector artwork; `color` tints it. */
 const OUTFITS = [
-  { name:"Squire's Gambeson",   min:1,  cls:0 },
-  { name:"Footman's Mail",      min:5,  cls:0 },
-  { name:"Knight's Plate",      min:12, cls:0 },
-  { name:"Champion's Warplate", min:20, cls:0 },
-  { name:'Apprentice Robe',     min:1,  cls:1 },
-  { name:"Adept's Vestments",   min:5,  cls:1 },
-  { name:'Magus Robes',         min:12, cls:1 },
-  { name:'Archmage Regalia',    min:20, cls:1 },
-  { name:"Wanderer's Leathers", min:1,  cls:2 },
-  { name:"Scout's Jerkin",      min:5,  cls:2 },
-  { name:"Ranger's Cloak",      min:12, cls:2 },
-  { name:"Warden's Mantle",     min:20, cls:2 },
-  { name:"Legend's Raiment",    min:30, cls:null },
-  { name:"Footpad's Garb",      min:1,  cls:3 },
-  { name:'Cutpurse Leathers',   min:5,  cls:3 },
-  { name:'Shadowblade Armor',   min:12, cls:3 },
-  { name:"Assassin's Shroud",   min:20, cls:3 },
-  { name:"Acolyte's Habit",     min:1,  cls:4 },
-  { name:"Cleric's Cassock",    min:5,  cls:4 },
-  { name:"Bishop's Vestments",  min:12, cls:4 },
-  { name:"High Priest's Raiment", min:20, cls:4 },
+  { name:"Squire's Gambeson",   min:1,  cls:0, art:0,  color:'#b39b72' },
+  { name:"Footman's Mail",      min:5,  cls:0, art:1,  color:'#9aa2ad' },
+  { name:"Knight's Plate",      min:12, cls:0, art:2,  color:'#8d97a3' },
+  { name:"Champion's Warplate", min:20, cls:0, art:3,  color:'#7d8794' },
+  { name:'Apprentice Robe',     min:1,  cls:1, art:4,  color:'#46648f' },
+  { name:"Adept's Vestments",   min:5,  cls:1, art:5,  color:'#3d5a80' },
+  { name:'Magus Robes',         min:12, cls:1, art:6,  color:'#5b3fa8' },
+  { name:'Archmage Regalia',    min:20, cls:1, art:7,  color:'#e8e4d8' },
+  { name:"Wanderer's Leathers", min:1,  cls:2, art:8,  color:'#7a5c3e' },
+  { name:"Scout's Jerkin",      min:5,  cls:2, art:9,  color:'#567d4e' },
+  { name:"Ranger's Cloak",      min:12, cls:2, art:10, color:'#3e6b4f' },
+  { name:"Warden's Mantle",     min:20, cls:2, art:11, color:'#4c7a5c' },
+  { name:"Legend's Raiment",    min:30, cls:null, art:12, color:'#23242e' },
+  { name:"Footpad's Garb",      min:1,  cls:3, art:13, color:'#4a4d57' },
+  { name:'Cutpurse Leathers',   min:5,  cls:3, art:14, color:'#3a3d46' },
+  { name:'Shadowblade Armor',   min:12, cls:3, art:15, color:'#2e3138' },
+  { name:"Assassin's Shroud",   min:20, cls:3, art:16, color:'#1f2128' },
+  { name:"Acolyte's Habit",     min:1,  cls:4, art:17, color:'#cfc8b4' },
+  { name:"Cleric's Cassock",    min:5,  cls:4, art:18, color:'#e3ddcc' },
+  { name:"Bishop's Vestments",  min:12, cls:4, art:19, color:'#e8e2d0' },
+  { name:"High Priest's Raiment", min:20, cls:4, art:20, color:'#f0ead8' },
+  // — Achievement-earned trophies you can wear —
+  { name:'Gambeson of Giants',      ach:'big_boss',  cls:0, art:0,  color:'#5f7f9e' },
+  { name:'Bloodforged Plate',       ach:'boss25',    cls:0, art:3,  color:'#7e2f2f' },
+  { name:'Starweave Vestments',     ach:'streak30',  cls:1, art:7,  color:'#324a7e' },
+  { name:'Robes of the Infinite Page', ach:'p10000', cls:1, art:6,  color:'#2f7e6e' },
+  { name:'Stormstrider Leathers',   ach:'day200',    cls:2, art:8,  color:'#4a5e6e' },
+  { name:'Cloak of Many Realms',    ach:'genres5',   cls:2, art:10, color:'#6e4a7e' },
+  { name:'Nightfeather Garb',       ach:'speed3',    cls:3, art:15, color:'#26203a' },
+  { name:'Shroud of the Silent Century', ach:'quest100', cls:3, art:16, color:'#3a1f26' },
+  { name:'Vestments of the Dawn',   ach:'streak14',  cls:4, art:19, color:'#e8d8b8' },
+  { name:'Radiance of the Faithful', ach:'boss10',   cls:4, art:20, color:'#f2e6c8' },
+  { name:'Cloak of the Loyal',      ach:'author3',   cls:null, art:10, color:'#7e5a2f' },
+  { name:"Binge Reader's Housecoat", ach:'binge3',   cls:null, art:4,  color:'#8a4a6e' },
+  { name:'Raiment of the Living Legend', ach:'lvl30', cls:null, art:12, color:'#101018' },
 ];
 const HEADGEAR = [
-  { name:'None',             min:1,  cls:null },
-  { name:'Reading Glasses',  min:1,  cls:null },
-  { name:'Padded Coif',      min:3,  cls:0 },
-  { name:'Steel Helm',       min:8,  cls:0 },
-  { name:'Greathelm',        min:16, cls:0 },
-  { name:'Apprentice Hood',  min:3,  cls:1 },
-  { name:'Gold Circlet',     min:8,  cls:1 },
-  { name:'Wizard Hat',       min:16, cls:1 },
-  { name:'Leather Hood',     min:3,  cls:2 },
-  { name:'Feathered Cap',    min:8,  cls:2 },
-  { name:'Antler Crown',     min:16, cls:2 },
-  { name:'Crown of Legends', min:30, cls:null },
-  { name:'Dark Cowl',        min:3,  cls:3 },
-  { name:'Shadow Mask',      min:8,  cls:3 },
-  { name:'Nightveil Hood',   min:16, cls:3 },
-  { name:'Prayer Hood',      min:3,  cls:4 },
-  { name:'Blessed Circlet',  min:8,  cls:4 },
-  { name:'Grand Mitre',      min:16, cls:4 },
+  { name:'None',             min:1,  cls:null, art:0 },
+  { name:'Reading Glasses',  min:1,  cls:null, art:1 },
+  { name:'Padded Coif',      min:3,  cls:0, art:2 },
+  { name:'Steel Helm',       min:8,  cls:0, art:3 },
+  { name:'Greathelm',        min:16, cls:0, art:4 },
+  { name:'Apprentice Hood',  min:3,  cls:1, art:5 },
+  { name:'Gold Circlet',     min:8,  cls:1, art:6 },
+  { name:'Wizard Hat',       min:16, cls:1, art:7 },
+  { name:'Leather Hood',     min:3,  cls:2, art:8 },
+  { name:'Feathered Cap',    min:8,  cls:2, art:9 },
+  { name:'Antler Crown',     min:16, cls:2, art:10 },
+  { name:'Crown of Legends', min:30, cls:null, art:11 },
+  { name:'Dark Cowl',        min:3,  cls:3, art:12 },
+  { name:'Shadow Mask',      min:8,  cls:3, art:13 },
+  { name:'Nightveil Hood',   min:16, cls:3, art:14 },
+  { name:'Prayer Hood',      min:3,  cls:4, art:15 },
+  { name:'Blessed Circlet',  min:8,  cls:4, art:16 },
+  { name:'Grand Mitre',      min:16, cls:4, art:17 },
+  // — Achievement-earned —
+  { name:'Coif of the Bear',        ach:'day100',    cls:0, art:2,  color:'#8a5a3a' },
+  { name:'Helm of the Titan',       ach:'big800',    cls:0, art:4 },
+  { name:'Hood of Whispered Lore',  ach:'quest50',   cls:1, art:5,  color:'#5e3a7e' },
+  { name:'Cap of the Windrunner',   ach:'speed3',    cls:2, art:9,  color:'#3a6e5a' },
+  { name:'Cowl of Midnight',        ach:'streak14',  cls:3, art:12, color:'#14161e' },
+  { name:'Hood of Quiet Prayer',    ach:'p2500',     cls:4, art:15, color:'#d8c8a8' },
+  { name:'Circlet of a Hundred Flames', ach:'streak100', cls:null, art:6 },
+  { name:'Crown of the Immortal Slayer', ach:'boss100', cls:null, art:11 },
 ];
+/* Weapons & backdrops appear in your AI-painted portrait. */
+const WEAPONS = [
+  { name:'Training Sword',       min:1,  cls:0, desc:'holding a simple training sword' },
+  { name:'Steel Longsword',      min:5,  cls:0, desc:'holding a gleaming steel longsword' },
+  { name:'Runed Greatsword',     min:12, cls:0, desc:'holding a massive rune-etched greatsword' },
+  { name:'Dragonfang Blade',     min:20, cls:0, desc:'holding a legendary sword forged from a dragon fang' },
+  { name:'Giantsbane Warhammer', ach:'big800', cls:0, desc:'holding an enormous two-handed warhammer' },
+  { name:'Apprentice Wand',      min:1,  cls:1, desc:'holding a slender wooden wand' },
+  { name:'Oak Staff',            min:5,  cls:1, desc:'holding a gnarled oak staff' },
+  { name:'Crystal-Tipped Staff', min:12, cls:1, desc:'holding a staff crowned with a glowing crystal' },
+  { name:'Archstaff of Radiance', min:20, cls:1, desc:'holding an ornate golden archstaff radiating light' },
+  { name:'Grimoire of Ten Thousand Pages', ach:'p10000', cls:1, desc:'holding an enormous ancient grimoire glowing with arcane runes' },
+  { name:'Shortbow',             min:1,  cls:2, desc:'carrying a simple shortbow' },
+  { name:'Recurve Bow',          min:5,  cls:2, desc:'carrying an elegant recurve bow' },
+  { name:'Longbow of the Wilds', min:12, cls:2, desc:'carrying a tall carved longbow with a quiver of arrows' },
+  { name:'Stormpiercer Bow',     min:20, cls:2, desc:'carrying a legendary bow crackling with storm energy' },
+  { name:'Twin Blades of the Hunt', ach:'day200', cls:2, desc:'wielding twin curved hunting blades' },
+  { name:'Rusty Dagger',         min:1,  cls:3, desc:'gripping a worn rusty dagger' },
+  { name:'Twin Daggers',         min:5,  cls:3, desc:'gripping a pair of sharp daggers' },
+  { name:'Shadowfang Blades',    min:12, cls:3, desc:'gripping black curved daggers wreathed in shadow' },
+  { name:'Whisperkiss Daggers',  min:20, cls:3, desc:'gripping legendary jeweled assassin daggers' },
+  { name:'The Bookmark',         ach:'speed3', cls:3, desc:'gripping a slim silver stiletto shaped like a bookmark' },
+  { name:'Wooden Mace',          min:1,  cls:4, desc:'holding a plain wooden mace' },
+  { name:'Blessed Censer',       min:5,  cls:4, desc:'holding a golden censer trailing holy smoke' },
+  { name:'Warhammer of Light',   min:12, cls:4, desc:'holding a radiant warhammer engraved with sun sigils' },
+  { name:'Scepter of Dawn',      min:20, cls:4, desc:'holding a golden scepter blazing like the sunrise' },
+  { name:'Tome of Eternal Verse', ach:'streak30', cls:4, desc:'holding an illuminated holy tome with gilded pages' },
+];
+const BACKDROPS = [
+  { name:'Candlelit Library',   min:1, desc:'dark candlelit castle library background' },
+  { name:'Misty Forest',        ach:'genres3',  desc:'misty ancient forest background at dusk' },
+  { name:"Dragon's Hoard",      ach:'boss10',   desc:'cavern piled with glittering golden treasure background' },
+  { name:'Starlit Observatory', ach:'p10000',   desc:'tower observatory under a swirling starry night sky background' },
+  { name:'Storm Battlements',   ach:'streak30', desc:'castle battlements in a raging lightning storm background' },
+  { name:'Royal Court',         ach:'lvl20',    desc:'torchlit royal throne room background' },
+  { name:'Volcanic Forge',      ach:'p50000',   desc:'ancient dwarven forge glowing with molten metal background' },
+  { name:'Dawn Cathedral',      ach:'streak100', desc:'sunrise light streaming through cathedral stained glass background' },
+];
+function gearUnlocked(g, lvl) {
+  return (g.min === undefined || lvl >= g.min) && (!g.ach || state.ach.includes(g.ach));
+}
+function achName(id) { return (ACHIEVEMENTS.find(a => a.id === id) || { name: id }).name; }
+function lockLabel(g) { return g.ach ? `🏅 ${achName(g.ach)}` : `Lv ${g.min}`; }
 const AGES = ['Young adult', 'Adult', 'Middle-aged', 'Elder'];
 const AGE_DESC = ['young adult in their early twenties, youthful smooth features',
   'adult in their thirties', 'middle-aged around fifty, weathered features with fine lines',
   'elderly in their seventies, deeply lined wise face with age spots'];
-const DEFAULT_AVATAR = { build:0, class:0, age:1, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
-function classDefaultOutfit(cls, lvl) { // best unlocked tier in this class line
+const DEFAULT_AVATAR = { build:0, class:0, age:1, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0, weapon:0, backdrop:0 };
+function classDefaultOutfit(cls, lvl) { // best unlocked level-tier in this class line
   let best = OUTFITS.findIndex(o => o.cls === cls);
-  OUTFITS.forEach((o, i) => { if (o.cls === cls && o.min <= lvl) best = i; });
+  OUTFITS.forEach((o, i) => { if (o.cls === cls && o.min !== undefined && o.min <= lvl) best = i; });
+  return best;
+}
+function classDefaultWeapon(cls, lvl) {
+  let best = WEAPONS.findIndex(w => w.cls === cls);
+  WEAPONS.forEach((w, i) => { if (w.cls === cls && w.min !== undefined && w.min <= lvl) best = i; });
   return best;
 }
 
@@ -451,13 +525,17 @@ function shade(hex, f) {
   return '#' + c((n>>16)&255) + c((n>>8)&255) + c(n&255);
 }
 function playerLevel() { return levelInfo(curXP()).lvl; }
-function effectiveAvatar() { // XP decay can drop your level and re-lock gear
+function effectiveAvatar() { // equipped gear must be unlocked for the current class & level
   const av = { ...DEFAULT_AVATAR, ...(state.avatar || {}) };
   const lvl = playerLevel();
   const o = OUTFITS[av.outfit];
-  if (!o || o.min > lvl || (o.cls !== null && o.cls !== av.class)) av.outfit = classDefaultOutfit(av.class, lvl);
+  if (!o || !gearUnlocked(o, lvl) || (o.cls !== null && o.cls !== av.class)) av.outfit = classDefaultOutfit(av.class, lvl);
   const h = HEADGEAR[av.hat];
-  if (!h || h.min > lvl || (h.cls !== null && h.cls !== av.class)) av.hat = 0;
+  if (!h || !gearUnlocked(h, lvl) || (h.cls !== null && h.cls !== av.class)) av.hat = 0;
+  const w = WEAPONS[av.weapon];
+  if (!w || !gearUnlocked(w, lvl) || (w.cls !== null && w.cls !== av.class)) av.weapon = classDefaultWeapon(av.class, lvl);
+  const bd = BACKDROPS[av.backdrop];
+  if (!bd || !gearUnlocked(bd, lvl)) av.backdrop = 0;
   return av;
 }
 
@@ -536,15 +614,11 @@ function buildAvatarSVG(av) {
     case 3: beard = `<path d="M41.5,52 C41.5,79 50,86 60,86 C70,86 78.5,79 78.5,52 C76.5,67 70,72.5 60,72.5 C50,72.5 43.5,67 41.5,52 Z" fill="${hairG}"/><path d="M51,66.5 Q55,63.6 60,64.4 Q65,63.6 69,66.5 Q64.5,68.6 60,68 Q55.5,68.6 51,66.5 Z" fill="${hairG}"/>` + strands('M50,74 Q55,80 60,80.5') + strands('M70,74 Q65,80 60,80.5'); break;
   }
 
-  // --- Outfit (shoulders) — class gear lines ---
+  // --- Outfit (shoulders) — art index + tint from gear definition ---
   const shoulders = `M18,130 C22,101 38,91 60,91 C82,91 98,101 102,130 Z`;
-  const o = av.outfit;
-  const oc = ['#b39b72','#9aa2ad','#8d97a3','#7d8794',          // warrior
-              '#46648f','#3d5a80','#5b3fa8','#e8e4d8',          // mage
-              '#7a5c3e','#567d4e','#3e6b4f','#4c7a5c',          // ranger
-              '#23242e',                                         // legend
-              '#4a4d57','#3a3d46','#2e3138','#1f2128',          // rogue
-              '#cfc8b4','#e3ddcc','#e8e2d0','#f0ead8'][o];      // priest
+  const oDef = OUTFITS[av.outfit];
+  const o = oDef.art;
+  const oc = oDef.color;
   const metalBase = [1, 2, 3].includes(o);
   outfit = `<path d="${shoulders}" fill="${metalBase ? metalG : clothG}"/>`
     + `<path d="M30,130 Q34,104 46,96" stroke="#000" stroke-width="3" opacity=".08" fill="none"/>`
@@ -598,38 +672,39 @@ function buildAvatarSVG(av) {
       outfit += `<path d="${trimBand}" stroke="${gold}" stroke-width="3.5" fill="none"/><circle cx="60" cy="110" r="7" fill="${gold}"/><circle cx="60" cy="110" r="3.5" fill="#fff8e0"/>${[0,45,90,135,180,225,270,315].map(a=>`<path d="M60,110 m${10*Math.cos(a*Math.PI/180)},${10*Math.sin(a*Math.PI/180)} l${4*Math.cos(a*Math.PI/180)},${4*Math.sin(a*Math.PI/180)}" stroke="${gold}" stroke-width="1.8"/>`).join('')}`; break;
   }
 
-  // --- Headgear — class gear lines ---
-  switch (av.hat) {
+  // --- Headgear — art index + optional tint from gear definition ---
+  const hatC = HEADGEAR[av.hat].color || null;
+  switch (HEADGEAR[av.hat].art) {
     case 1: // Reading Glasses
       hat = `<circle cx="52" cy="50" r="6" stroke="#443c30" stroke-width="1.5" fill="none"/><circle cx="68" cy="50" r="6" stroke="#443c30" stroke-width="1.5" fill="none"/><path d="M58,50 L62,50 M46,50 L40,53 M74,50 L80,53" stroke="#443c30" stroke-width="1.5"/>`; break;
     case 2: // Padded Coif
-      hat = `<path d="M38,52 Q38,20 60,20 Q82,20 82,52 L82,62 Q77,66 75,58 L75,44 Q69,32 60,32 Q51,32 45,44 L45,58 Q43,66 38,62 Z" fill="#b39b72"/><path d="M44,30 Q60,22 76,30 M40,42 Q60,30 80,42" stroke="${shade('#b39b72',.8)}" stroke-width="1.2" fill="none"/>`; break;
+      hat = `<path d="M38,52 Q38,20 60,20 Q82,20 82,52 L82,62 Q77,66 75,58 L75,44 Q69,32 60,32 Q51,32 45,44 L45,58 Q43,66 38,62 Z" fill="${hatC||'#b39b72'}"/><path d="M44,30 Q60,22 76,30 M40,42 Q60,30 80,42" stroke="${shade(hatC||'#b39b72',.8)}" stroke-width="1.2" fill="none"/>`; break;
     case 3: // Steel Helm
       hat = `<path d="M38,48 Q38,19 60,19 Q82,19 82,48 L82,52 L75,52 L75,42 Q69,31 60,31 Q51,31 45,42 L45,52 L38,52 Z" fill="${metalG}" stroke="#5f6873"/><rect x="58.3" y="42" width="3.4" height="15" rx="1.5" fill="${metalG}" stroke="#5f6873" stroke-width=".8"/>`; break;
     case 4: // Greathelm — crested, cheek guards
       hat = `<path d="M38,48 Q38,17 60,17 Q82,17 82,48 L82,64 Q76,68 74,60 L74,42 Q68,30 60,30 Q52,30 46,42 L46,60 Q44,68 38,64 Z" fill="${metalG}" stroke="#4f5761"/><path d="M50,17 Q60,4 70,17 Q60,12 50,17 Z" fill="#c23040"/><rect x="58.3" y="40" width="3.4" height="16" rx="1.5" fill="${metalG}" stroke="#4f5761" stroke-width=".8"/>`; break;
     case 5: // Apprentice Hood
-      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#46648f"/>`; break;
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="${hatC||'#46648f'}"/>`; break;
     case 6: // Gold Circlet
       hat = `<path d="M40,41 Q60,34.5 80,41" stroke="${gold}" stroke-width="2.6" fill="none"/><path d="M60,34 l3,4 -3,4 -3,-4 Z" fill="#e14b5a"/>`; break;
     case 7: // Wizard Hat
       hat = `<ellipse cx="60" cy="30" rx="27" ry="6.5" fill="#5b3fa8"/><path d="M39,29 L60,-6 L81,29 Q60,22 39,29 Z" fill="#6a4ac2"/><path d="M44,24 Q60,19 76,24" stroke="${gold}" stroke-width="2.4" fill="none"/><path d="M64,6 l1.6,3.2 3.4,.4 -2.5,2.4 .6,3.4 -3.1,-1.7 -3.1,1.7 .6,-3.4 -2.5,-2.4 3.4,-.4 Z" fill="${gold}"/>`; break;
     case 8: // Leather Hood
-      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#6b4e32"/><path d="M40,58 Q38,34 60,26 Q82,34 80,58" stroke="${shade('#6b4e32',.75)}" stroke-width="1.5" fill="none"/>`; break;
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="${hatC||'#6b4e32'}"/><path d="M40,58 Q38,34 60,26 Q82,34 80,58" stroke="${shade(hatC||'#6b4e32',.75)}" stroke-width="1.5" fill="none"/>`; break;
     case 9: // Feathered Cap
-      hat = `<path d="M38,42 Q40,20 62,21 Q84,24 81,40 Q60,30 38,42 Z" fill="#4c7a5c"/><ellipse cx="79" cy="24" rx="10" ry="3" fill="#c23040" transform="rotate(-38 79 24)"/><path d="M71,30 L87,18" stroke="#8a2430" stroke-width="1" opacity=".7"/>`; break;
+      hat = `<path d="M38,42 Q40,20 62,21 Q84,24 81,40 Q60,30 38,42 Z" fill="${hatC||'#4c7a5c'}"/><ellipse cx="79" cy="24" rx="10" ry="3" fill="#c23040" transform="rotate(-38 79 24)"/><path d="M71,30 L87,18" stroke="#8a2430" stroke-width="1" opacity=".7"/>`; break;
     case 10: // Antler Crown
       hat = `<path d="M40,40 Q60,34 80,40" stroke="#6b4e32" stroke-width="3" fill="none"/><path d="M44,38 Q40,26 42,16 M44,38 Q36,30 32,26 M44,38 Q46,26 50,22" stroke="#a8895f" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M76,38 Q80,26 78,16 M76,38 Q84,30 88,26 M76,38 Q74,26 70,22" stroke="#a8895f" stroke-width="2.2" fill="none" stroke-linecap="round"/>`; break;
     case 11: // Crown of Legends
       hat = `<path d="M40,36 L44,20 L52,31 L60,15 L68,31 L76,20 L80,36 Q60,29.5 40,36 Z" fill="${goldG}" stroke="#c99a1e"/><circle cx="60" cy="26" r="2.2" fill="#e14b5a"/><circle cx="48" cy="29" r="1.6" fill="#2f5d8a"/><circle cx="72" cy="29" r="1.6" fill="#2f5d8a"/>`; break;
     case 12: // Dark Cowl
-      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#3a3d46"/>`; break;
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="${hatC||'#3a3d46'}"/>`; break;
     case 13: // Shadow Mask — face wrap below the eyes
       hat = `<path d="M40,56 Q60,50 80,56 L80,64 Q72,76 60,77 Q48,76 40,64 Z" fill="#2e3138"/><path d="M40,58 L34,62 M80,58 L86,62" stroke="#2e3138" stroke-width="3"/>`; break;
     case 14: // Nightveil Hood — deep hood, shadowed brow
       hat = `<path d="M33,90 Q24,28 60,15 Q96,28 87,90 Q88,48 60,32 Q32,48 33,90 Z" fill="#1f2128"/><path d="M40,40 Q60,32 80,40 L80,45 Q60,38 40,45 Z" fill="#0d0e12" opacity=".8"/><path d="M33,88 Q26,34 60,19" stroke="#6b4fd8" stroke-width="1" fill="none" opacity=".5"/>`; break;
     case 15: // Prayer Hood
-      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="#cfc8b4"/><path d="M36,70 Q30,40 60,24" stroke="#b3a276" stroke-width="1.2" fill="none"/>`; break;
+      hat = `<path d="M33,90 Q26,30 60,17 Q94,30 87,90 Q88,50 60,34 Q32,50 33,90 Z" fill="${hatC||'#cfc8b4'}"/><path d="M36,70 Q30,40 60,24" stroke="${shade(hatC||'#cfc8b4',.8)}" stroke-width="1.2" fill="none"/>`; break;
     case 16: // Blessed Circlet — gold band, radiant gem
       hat = `<path d="M40,41 Q60,34.5 80,41" stroke="${gold}" stroke-width="2.6" fill="none"/><circle cx="60" cy="37.5" r="2.6" fill="#fff8e0" stroke="${gold}" stroke-width="1.2"/><path d="M60,32.5 L60,30.5 M55,34 L53.6,32.6 M65,34 L66.4,32.6" stroke="${gold}" stroke-width="1.3"/>`; break;
     case 17: // Grand Mitre — tall arched cap
@@ -840,6 +915,8 @@ function checkAchievements() {
       state.ach.push(a.id);
       toast(`🏅 Achievement unlocked: ${a.name}!`);
       grantXP(50, true); // silent xp for achievement
+      const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS].filter(g => g.ach === a.id);
+      if (gear.length) toast(`🛡️ Trophy gear earned: ${gear.map(g => g.name).join(', ')} — click your avatar!`);
     }
   }
 }
@@ -854,7 +931,8 @@ function grantXP(amount, silent) {
     toast(`🎉 LEVEL UP! You are now level ${after} — ${titleFor(after)}`);
     confetti(20);
     const cls = (state.avatar || DEFAULT_AVATAR).class;
-    const gear = [...OUTFITS, ...HEADGEAR].filter(g => g.min > before && g.min <= after && (g.cls === null || g.cls === cls));
+    const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS]
+      .filter(g => g.min !== undefined && g.min > before && g.min <= after && (g.cls === undefined || g.cls === null || g.cls === cls));
     if (gear.length) toast(`🛡️ New gear unlocked: ${gear.map(g => g.name).join(', ')} — click your avatar!`);
   }
 }
@@ -1013,7 +1091,9 @@ function aiPrompt(av) {
   let gear = `wearing ${OUTFITS[av.outfit].name}`;
   if (av.hat === 1) gear += ' and round reading glasses';
   else if (av.hat > 1) gear += ` and a ${HEADGEAR[av.hat].name}`;
-  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]}, ${AGE_DESC[av.age === undefined ? 1 : av.age]}, with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, dark castle library background, film still, award-winning photography.`
+  gear += `, ${WEAPONS[av.weapon === undefined ? 0 : av.weapon].desc}`;
+  const backdrop = BACKDROPS[av.backdrop === undefined ? 0 : av.backdrop].desc;
+  return `Photorealistic cinematic portrait photograph, head and shoulders, of a ${gender} medieval fantasy ${CLASS_DESC[av.class]}, ${AGE_DESC[av.age === undefined ? 1 : av.age]}, with ${SKIN_DESC[av.skin]} skin, ${hair}, ${EYECOLOR_DESC[av.eyeColor]} eyes, ${EXPR_DESC[av.eyes]}${BEARD_DESC[av.beard]}, ${gear}. Shot on 85mm lens, shallow depth of field, hyperdetailed skin texture and pores, realistic fabric and metal, dramatic torchlight, ${backdrop}, film still, award-winning photography.`
     + (state.aiSeedBump ? ` Variation ${state.aiSeedBump}.` : '');
 }
 function hashStr(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
@@ -1080,6 +1160,8 @@ const EDITOR_SLOTS = [
   { key:'beard', label:'Facial hair', type:'chip', values: BEARDS },
   { key:'outfit', label:'Outfit', type:'gear', values: OUTFITS },
   { key:'hat', label:'Headgear', type:'gear', values: HEADGEAR },
+  { key:'weapon', label:'Weapon (shown in AI portrait)', type:'gear', values: WEAPONS },
+  { key:'backdrop', label:'Backdrop (shown in AI portrait)', type:'gear', values: BACKDROPS },
 ];
 let onboardingMode = false;
 function openAvatarEditor(onboard) {
@@ -1109,8 +1191,10 @@ function closeAvatarEditor() {
 }
 function setAvatarPart(key, i) {
   const slot = EDITOR_SLOTS.find(s => s.key === key);
-  if (slot.type === 'gear' && slot.values[i].min > playerLevel()) {
-    toast(`🔒 ${slot.values[i].name} unlocks at level ${slot.values[i].min}`);
+  if (slot.type === 'gear' && !gearUnlocked(slot.values[i], playerLevel())) {
+    const g = slot.values[i];
+    toast(g.ach ? `🔒 ${g.name} — earn the "${achName(g.ach)}" achievement to unlock`
+                : `🔒 ${g.name} unlocks at level ${g.min}`);
     return;
   }
   if (key === 'class' && !onboardingMode && i !== state.avatar.class) {
@@ -1121,6 +1205,7 @@ function setAvatarPart(key, i) {
   state.avatar[key] = i;
   if (key === 'class') { // changing class re-equips that class's gear line at its own level
     state.avatar.outfit = classDefaultOutfit(i, playerLevel());
+    state.avatar.weapon = classDefaultWeapon(i, playerLevel());
     const h = HEADGEAR[state.avatar.hat];
     if (h.cls !== null && h.cls !== i) state.avatar.hat = 0;
     if (!onboardingMode) toast(`${CLASSES[i]} — level ${playerLevel()}`);
@@ -1151,9 +1236,9 @@ function renderEditor() {
       if (slot.type === 'color') {
         opts += `<div class="swatch${sel}" style="background:${v}" onclick="setAvatarPart('${slot.key}',${i})"></div>`;
       } else if (slot.type === 'gear') {
-        if (v.cls !== null && v.cls !== state.avatar.class) return; // show only your class's gear line
-        const locked = v.min > lvl;
-        opts += `<div class="chip${sel}${locked ? ' locked' : ''}" onclick="setAvatarPart('${slot.key}',${i})">${locked ? '🔒 ' : ''}${v.name}${locked ? ` · Lv ${v.min}` : ''}</div>`;
+        if (v.cls !== undefined && v.cls !== null && v.cls !== state.avatar.class) return; // show only your class's gear line
+        const locked = !gearUnlocked(v, lvl);
+        opts += `<div class="chip${sel}${locked ? ' locked' : ''}" onclick="setAvatarPart('${slot.key}',${i})">${locked ? '🔒 ' : (v.ach ? '🏅 ' : '')}${v.name}${locked ? ` · ${lockLabel(v)}` : ''}</div>`;
       } else {
         opts += `<div class="chip${sel}" onclick="setAvatarPart('${slot.key}',${i})">${v}</div>`;
       }
