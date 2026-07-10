@@ -254,7 +254,6 @@
     <div class="stat"><div class="v" id="stBest">0</div><div class="k">🏆 Best streak</div></div>
   </div>
 
-  <div class="hint" id="decayHint" style="display:none; color: var(--hp); margin-top:12px; text-align:center;"></div>
 
   <!-- Tabs -->
   <div class="tabs">
@@ -308,12 +307,16 @@
     <div class="editor-head">
       <div class="editor-preview" id="edPreview"></div>
       <div>
-        <h3 style="font-size:18px">Customize Hero</h3>
-        <div class="hint">Gear unlocks as you level up. Beware — if XP decay drops your level, gear re-locks!</div>
+        <h3 style="font-size:18px" id="edTitle">Customize Hero</h3>
+        <div class="hint" id="edSubtitle">Each class levels separately — your progress in every class is saved.</div>
       </div>
     </div>
+    <div class="ed-row" id="onbNameRow" style="display:none">
+      <div class="lbl">Hero name</div>
+      <input id="onbName" placeholder="Name your hero *" style="width:100%">
+    </div>
     <div id="editorRows"></div>
-    <div style="text-align:right; margin-top:14px"><button class="gold" onclick="closeAvatarEditor()">Done</button></div>
+    <div style="text-align:right; margin-top:14px"><button class="gold" id="edDone" onclick="closeAvatarEditor()">Done</button></div>
   </div>
 </div>
 
@@ -339,7 +342,12 @@ function load() {
   try { const raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch(e) {}
   s = s || mem || { name: 'Nick', xp: 0, books: [], logs: [], ach: [], bestStreak: 0 };
   // migrations / defaults
-  if (s.decayThrough === undefined) s.decayThrough = null;
+  if (s.classXP === undefined) { // per-class progression: move old global XP into the current class
+    s.classXP = [0, 0, 0, 0, 0];
+    s.classXP[(s.avatar && s.avatar.class) || 0] = s.xp || 0;
+  }
+  if (s.onboarded === undefined) // existing players skip character creation
+    s.onboarded = (s.logs || []).length > 0 || (s.books || []).length > 0 || (s.xp || 0) > 0;
   if (!s.avatar) s.avatar = { build:0, class:0, skin:1, hair:2, hairColor:1, eyes:0, eyeColor:0, beard:0, outfit:0, hat:0 };
   else if (s.avatar.class === undefined) { s.avatar.build = 0; s.avatar.class = 0; s.avatar.outfit = 0; s.avatar.hat = 0; } // pre-class saves
   if (s.avatar.age === undefined) s.avatar.age = 1;
@@ -442,7 +450,7 @@ function shade(hex, f) {
   const c = x => Math.min(255, Math.round(x * f)).toString(16).padStart(2, '0');
   return '#' + c((n>>16)&255) + c((n>>8)&255) + c(n&255);
 }
-function playerLevel() { return levelInfo(state.xp).lvl; }
+function playerLevel() { return levelInfo(curXP()).lvl; }
 function effectiveAvatar() { // XP decay can drop your level and re-lock gear
   const av = { ...DEFAULT_AVATAR, ...(state.avatar || {}) };
   const lvl = playerLevel();
@@ -735,32 +743,14 @@ function questsDone() {
 }
 function endBossesSlain() { return finishedBooks().length; }
 
-/* ================= XP Decay =================
-   After 2 idle days, XP starts to fade — slowly at first, then faster.
-   Loss on idle day d (d >= 3): 10 × (d-2)², capped at 1,000 XP/day.
-   Day 3: -10 · Day 5: -90 · Day 7: -250 · Day 12: -1,000/day */
-function lastReadDate() {
-  const d = [...new Set(state.logs.map(l => l.date))].sort();
-  return d.length ? d[d.length - 1] : null;
-}
-function decayForIdleDay(idle) {
-  return idle >= 3 ? Math.min(10 * Math.pow(idle - 2, 2), 1000) : 0;
-}
-function applyDecay() {
-  const last = lastReadDate();
-  if (!last) { state.decayThrough = today(); return 0; }
-  const from = state.decayThrough && state.decayThrough > last ? state.decayThrough : last;
-  let lost = 0;
-  const cursor = new Date(from + 'T00:00:00Z');
-  const end = new Date(today() + 'T00:00:00Z');
-  while (cursor < end) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    lost += decayForIdleDay(daysBetween(last, cursor.toISOString().slice(0,10)));
-  }
-  state.decayThrough = today();
-  if (lost > 0) state.xp = Math.max(0, state.xp - lost);
-  return lost;
-}
+/* ================= Per-class XP =================
+   Every class levels separately. Your progress in each class is saved —
+   swap from Mage to Rogue and back, and your Mage levels are waiting. */
+function curClass() { return (state.avatar && state.avatar.class) || 0; }
+function curXP() { return state.classXP[curClass()] || 0; }
+function addXP(n) { state.classXP[curClass()] = Math.max(0, curXP() + n); }
+function maxClassLevel() { return Math.max(...state.classXP.map(x => levelInfo(x).lvl)); }
+function classesAtLevel(n) { return state.classXP.filter(x => levelInfo(x).lvl >= n).length; }
 function biggestDay() {
   const byDay = {};
   state.logs.forEach(l => byDay[l.date] = (byDay[l.date]||0) + l.pages);
@@ -781,13 +771,69 @@ const ACHIEVEMENTS = [
   { id:'quest1', icon:'📜', name:'First Steps', desc:'Complete your first quest', test:() => questsDone() >= 1 },
   { id:'quest15', icon:'🗺️', name:'Seasoned Adventurer', desc:'Complete 15 quests', test:() => questsDone() >= 15 },
   { id:'quest30', icon:'🏰', name:'Guild Master', desc:'Complete 30 quests', test:() => questsDone() >= 30 },
-  { id:'streak3', icon:'🔥', name:'Kindling', desc:'3-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 3 },
-  { id:'streak7', icon:'🎇', name:'Eternal Flame', desc:'7-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 7 },
-  { id:'streak30', icon:'☄️', name:'Unstoppable', desc:'30-day reading streak', test:() => Math.max(currentStreak(), state.bestStreak) >= 30 },
+  { id:'streak3', icon:'🔥', name:'Kindling', desc:'3-day reading streak', test:() => bestStreakEver() >= 3 },
+  { id:'streak7', icon:'🎇', name:'Eternal Flame', desc:'7-day reading streak', test:() => bestStreakEver() >= 7 },
+  { id:'streak30', icon:'☄️', name:'Unstoppable', desc:'30-day reading streak', test:() => bestStreakEver() >= 30 },
   { id:'day100', icon:'⚡', name:'Marathon Mind', desc:'Read 100+ pages in one day', test:() => biggestDay() >= 100 },
-  { id:'genres3', icon:'🌈', name:'Genre Hopper', desc:'Finish books in 3 different genres', test:() => new Set(finishedBooks().map(b=>b.genre).filter(Boolean)).size >= 3 },
+  { id:'genres3', icon:'🌈', name:'Genre Hopper', desc:'Finish books in 3 different genres', test:() => genresFinished() >= 3 },
   { id:'big_boss', icon:'🏔️', name:'Giant Slayer', desc:'Finish a 500+ page book', test:() => finishedBooks().some(b => b.pages >= 500) },
+  // — Pages —
+  { id:'p2500', icon:'📜', name:'Scroll Devourer', desc:'Read 2,500 total pages', test:() => totalPages() >= 2500 },
+  { id:'p10000', icon:'🌠', name:'Ten-Thousand-Page Sage', desc:'Read 10,000 total pages', test:() => totalPages() >= 10000 },
+  { id:'p25000', icon:'🗻', name:'Mountain of Words', desc:'Read 25,000 total pages', test:() => totalPages() >= 25000 },
+  { id:'p50000', icon:'🌋', name:'The Endless Codex', desc:'Read 50,000 total pages', test:() => totalPages() >= 50000 },
+  { id:'p100000', icon:'♾️', name:'Keeper of Infinity', desc:'Read 100,000 total pages', test:() => totalPages() >= 100000 },
+  // — End bosses (books finished) —
+  { id:'boss25', icon:'🔱', name:'Legendary Slayer', desc:'Defeat 25 end bosses', test:() => endBossesSlain() >= 25 },
+  { id:'boss50', icon:'💀', name:'Mythic Slayer', desc:'Defeat 50 end bosses', test:() => endBossesSlain() >= 50 },
+  { id:'boss100', icon:'🌟', name:'Immortal Slayer', desc:'Defeat 100 end bosses', test:() => endBossesSlain() >= 100 },
+  // — Quests —
+  { id:'quest50', icon:'⚜️', name:'Banner of Fifty', desc:'Complete 50 quests', test:() => questsDone() >= 50 },
+  { id:'quest100', icon:'🎖️', name:'Quest Centurion', desc:'Complete 100 quests', test:() => questsDone() >= 100 },
+  { id:'quest250', icon:'👑', name:'Grand Chronicler', desc:'Complete 250 quests', test:() => questsDone() >= 250 },
+  // — Streaks —
+  { id:'streak14', icon:'🕯️', name:'Fortnight of Flame', desc:'14-day reading streak', test:() => bestStreakEver() >= 14 },
+  { id:'streak60', icon:'🎆', name:'Two-Moon Blaze', desc:'60-day reading streak', test:() => bestStreakEver() >= 60 },
+  { id:'streak100', icon:'💫', name:'Century Flame', desc:'100-day reading streak', test:() => bestStreakEver() >= 100 },
+  { id:'streak365', icon:'🌞', name:'Eternal Bonfire', desc:'365-day reading streak — a full year', test:() => bestStreakEver() >= 365 },
+  // — Single-day feats —
+  { id:'day200', icon:'🌪️', name:'Page Tempest', desc:'Read 200+ pages in one day', test:() => biggestDay() >= 200 },
+  { id:'day300', icon:'🚀', name:'Unputdownable', desc:'Read 300+ pages in one day', test:() => biggestDay() >= 300 },
+  // — Genres & giants —
+  { id:'genres5', icon:'🗺️', name:'Realm Wanderer', desc:'Finish books in 5 different genres', test:() => genresFinished() >= 5 },
+  { id:'genres8', icon:'🌌', name:'Omnireader', desc:'Finish books in 8 different genres', test:() => genresFinished() >= 8 },
+  { id:'big800', icon:'🗿', name:'Titan Slayer', desc:'Finish an 800+ page book', test:() => finishedBooks().some(b => b.pages >= 800) },
+  { id:'big1200', icon:'🐋', name:'Leviathan Slayer', desc:'Finish a 1,200+ page book', test:() => finishedBooks().some(b => b.pages >= 1200) },
+  // — Class mastery —
+  { id:'lvl5', icon:'🛡️', name:'Adventurer', desc:'Reach level 5 in any class', test:() => maxClassLevel() >= 5 },
+  { id:'lvl10', icon:'🏅', name:'Hero of the Realm', desc:'Reach level 10 in any class', test:() => maxClassLevel() >= 10 },
+  { id:'lvl20', icon:'⚡', name:'Champion of Pages', desc:'Reach level 20 in any class', test:() => maxClassLevel() >= 20 },
+  { id:'lvl30', icon:'🌅', name:'Living Legend', desc:'Reach level 30 in any class', test:() => maxClassLevel() >= 30 },
+  { id:'dual', icon:'⚔️', name:'Dual Destiny', desc:'Reach level 5 in two different classes', test:() => classesAtLevel(5) >= 2 },
+  { id:'all5', icon:'🃏', name:'Master of All Paths', desc:'Reach level 5 in all five classes', test:() => classesAtLevel(5) >= 5 },
+  // — Reading habits —
+  { id:'author3', icon:'💞', name:'Loyal Reader', desc:'Finish 3 books by the same author', test:() => maxSameAuthor() >= 3 },
+  { id:'binge3', icon:'📚', name:'Binge Reader', desc:'Finish 3 books in one calendar month', test:() => maxBooksInMonth() >= 3 },
+  { id:'speed3', icon:'🏃', name:'Speed Reader', desc:'Finish a book within 3 days of starting it', test:() => hasSpeedRead() },
 ];
+function bestStreakEver() { return Math.max(state.bestStreak || 0, currentStreak()); }
+function genresFinished() { return new Set(finishedBooks().map(b => b.genre).filter(Boolean)).size; }
+function maxSameAuthor() {
+  const m = {};
+  finishedBooks().forEach(b => { const a = (b.author || '').trim().toLowerCase(); if (a) m[a] = (m[a] || 0) + 1; });
+  return Math.max(0, ...Object.values(m));
+}
+function maxBooksInMonth() {
+  const m = {};
+  finishedBooks().forEach(b => { if (b.finishedAt) { const k = b.finishedAt.slice(0, 7); m[k] = (m[k] || 0) + 1; } });
+  return Math.max(0, ...Object.values(m));
+}
+function hasSpeedRead() {
+  return finishedBooks().some(b => {
+    const first = state.logs.filter(l => l.bookId === b.id).map(l => l.date).sort()[0];
+    return first && b.finishedAt && daysBetween(first, b.finishedAt) <= 3;
+  });
+}
 function checkAchievements() {
   for (const a of ACHIEVEMENTS) {
     if (!state.ach.includes(a.id) && a.test()) {
@@ -800,9 +846,9 @@ function checkAchievements() {
 
 /* ================= XP ================= */
 function grantXP(amount, silent) {
-  const before = levelInfo(state.xp).lvl;
-  state.xp += amount;
-  const after = levelInfo(state.xp).lvl;
+  const before = levelInfo(curXP()).lvl;
+  addXP(amount);
+  const after = levelInfo(curXP()).lvl;
   if (!silent) toast(`+${amount} XP`);
   if (after > before) {
     toast(`🎉 LEVEL UP! You are now level ${after} — ${titleFor(after)}`);
@@ -903,7 +949,6 @@ function logPages(bookId) {
   const n = Math.min(page, b.pages) - b.read; // damage = pages advanced
   b.read += n;
   state.logs.push({ date: today(), pages: n, bookId });
-  state.decayThrough = today(); // reading resets decay
   state.bestStreak = Math.max(state.bestStreak, currentStreak());
   const mult = multiplier();
   const xp = Math.round(n * 2 * mult);
@@ -1036,12 +1081,29 @@ const EDITOR_SLOTS = [
   { key:'outfit', label:'Outfit', type:'gear', values: OUTFITS },
   { key:'hat', label:'Headgear', type:'gear', values: HEADGEAR },
 ];
-function openAvatarEditor() {
+let onboardingMode = false;
+function openAvatarEditor(onboard) {
+  onboardingMode = !!onboard;
   state.avatar = { ...DEFAULT_AVATAR, ...(state.avatar || {}) };
+  document.getElementById('onbNameRow').style.display = onboardingMode ? 'block' : 'none';
+  document.getElementById('edTitle').textContent = onboardingMode ? '⚔️ Create Your Hero' : 'Customize Hero';
+  document.getElementById('edSubtitle').textContent = onboardingMode
+    ? 'Choose your name, class, and look. Each class levels up separately — pick your first path!'
+    : 'Each class levels separately — your progress in every class is saved.';
+  document.getElementById('edDone').textContent = onboardingMode ? '⚔️ Begin Your Saga' : 'Done';
+  if (onboardingMode) document.getElementById('onbName').value = '';
   renderEditor();
   document.getElementById('avatarModal').classList.add('show');
 }
 function closeAvatarEditor() {
+  if (onboardingMode) {
+    const name = document.getElementById('onbName').value.trim();
+    if (!name) { toast('📝 Every hero needs a name!'); return; }
+    state.name = name;
+    state.onboarded = true;
+    onboardingMode = false;
+    toast(`⚔️ Welcome, ${name}! Add a book to begin your first quest.`);
+  }
   document.getElementById('avatarModal').classList.remove('show');
   save(); render();
 }
@@ -1051,11 +1113,17 @@ function setAvatarPart(key, i) {
     toast(`🔒 ${slot.values[i].name} unlocks at level ${slot.values[i].min}`);
     return;
   }
+  if (key === 'class' && !onboardingMode && i !== state.avatar.class) {
+    const fromLvl = playerLevel();
+    const toLvl = levelInfo(state.classXP[i] || 0).lvl;
+    if (!confirm(`Swap to ${CLASSES[i]}?\n\nYour ${CLASSES[state.avatar.class]} progress is saved at level ${fromLvl}.\nYou'll continue as a level ${toLvl} ${CLASSES[i].replace(/^\S+ /, '')}.`)) return;
+  }
   state.avatar[key] = i;
-  if (key === 'class') { // changing class re-equips that class's gear line
+  if (key === 'class') { // changing class re-equips that class's gear line at its own level
     state.avatar.outfit = classDefaultOutfit(i, playerLevel());
     const h = HEADGEAR[state.avatar.hat];
     if (h.cls !== null && h.cls !== i) state.avatar.hat = 0;
+    if (!onboardingMode) toast(`${CLASSES[i]} — level ${playerLevel()}`);
   }
   save(); renderEditor(); render();
 }
@@ -1094,7 +1162,7 @@ function renderEditor() {
     rows.appendChild(row);
   }
 }
-document.getElementById('avatar').addEventListener('click', openAvatarEditor);
+document.getElementById('avatar').addEventListener('click', () => openAvatarEditor(false));
 document.getElementById('fSearch').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); searchBooks(); }
 });
@@ -1154,10 +1222,10 @@ function toast(msg) {
 
 /* ================= Render ================= */
 function render() {
-  const info = levelInfo(state.xp);
+  const info = levelInfo(curXP());
   document.getElementById('charName').textContent = state.name + (info.lvl < 5 ? ' the Novice' : info.lvl < 12 ? ' the Adept' : ' the Legendary');
   document.getElementById('charTitle').textContent = titleFor(info.lvl);
-  document.getElementById('lvlBadge').textContent = 'LV ' + info.lvl;
+  document.getElementById('lvlBadge').textContent = `LV ${info.lvl} · ${CLASSES[curClass()]}`;
   document.getElementById('xpBar').style.width = (info.rem / info.need * 100) + '%';
   document.getElementById('xpLabel').textContent = `${info.rem} / ${info.need} XP`;
   document.getElementById('avatar').innerHTML = avatarHTML(effectiveAvatar());
@@ -1168,18 +1236,6 @@ function render() {
   const cs = currentStreak();
   document.getElementById('stStreak').textContent = cs > 0 ? cs + ' 🔥' : '0';
   document.getElementById('stBest').textContent = Math.max(state.bestStreak, cs);
-
-  // Decay warning
-  const last = lastReadDate();
-  const hint = document.getElementById('decayHint');
-  if (last) {
-    const idle = daysBetween(last, today());
-    if (idle >= 2) {
-      const tomorrowLoss = decayForIdleDay(idle + 1);
-      hint.style.display = 'block';
-      hint.textContent = `⚠️ ${idle} days without reading — ${idle >= 3 ? 'your XP is fading!' : ''} Miss tomorrow and you lose ${tomorrowLoss} XP.`;
-    } else hint.style.display = 'none';
-  }
 
   // Quests
   const active = state.books.filter(b => !b.done);
@@ -1293,10 +1349,9 @@ for (const b of state.books) {
   if (b.xpEarned === undefined) // estimate for books logged before tracking existed (base rate, no streak bonus)
     b.xpEarned = b.read * 2 + b.quests * 50 + (b.done ? 100 + b.pages : 0);
 }
-const decayed = applyDecay();
-if (decayed > 0) toast(`💀 The Idle Curse drained ${decayed.toLocaleString()} XP! Read today to stop the decay.`);
 save();
 render();
+if (!state.onboarded) openAvatarEditor(true); // first launch → character creation
 backfillCovers();
 
 // PWA: offline support (only when served over http/https — harmless otherwise)
