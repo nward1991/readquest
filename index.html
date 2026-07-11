@@ -1240,7 +1240,14 @@ const EXPR_DESC = ['a calm confident expression', 'a piercing narrow-eyed gaze',
 const BEARD_DESC = ['', ' and light stubble', ' and a mustache', ' and a full beard'];
 const CLASS_DESC = ['warrior', 'mage', 'ranger', 'rogue', 'priest'];
 
-const AI_MODEL = 'black-forest-labs/flux-2-klein-4b'; // fast photoreal via Puter.js (no key; user approves Puter once)
+const AI_MODEL = 'black-forest-labs/flux-2-klein-4b'; // via Puter.js (no key; user approves Puter once)
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+let aiQueue = Promise.resolve(); // ALL paint jobs run one at a time — the service rejects concurrent requests
+function aiGenerate(prompt) {
+  const job = aiQueue.then(() => withTimeout(puter.ai.txt2img(prompt, { model: AI_MODEL }), 45000));
+  aiQueue = job.catch(() => {}); // a failed job never blocks the queue
+  return job;
+}
 function aiPrompt(av) {
   const hair = HAIR_DESC[av.hair].replace('{c}', HAIRCOLOR_DESC[av.hairColor]);
   const gender = av.build === 1 ? 'woman' : 'man';
@@ -1265,7 +1272,7 @@ function ensurePortrait(av) {
   aiTimer = setTimeout(async () => {
     aiInflight = key;
     try {
-      const img = await puter.ai.txt2img(aiPrompt(av), { model: AI_MODEL });
+      const img = await aiGenerate(aiPrompt(av));
       state.aiCache[key] = img.src;
       const keys = Object.keys(state.aiCache);
       if (keys.length > 24) keys.slice(0, keys.length - 24).forEach(k => delete state.aiCache[k]);
@@ -1316,11 +1323,11 @@ async function ensureDecor() {
   if (!state.decorToastShown) { toast('🎨 Painting your bookcase — it upgrades as each panel dries…'); state.decorToastShown = true; save(); }
   for (const k of missing) { // sequential — the paint service dislikes concurrent requests
     try {
-      const img = await puter.ai.txt2img(DECOR_PROMPTS[k], { model: AI_MODEL });
-      await new Promise((res, rej) => { const t = new Image(); t.onload = res; t.onerror = rej; t.src = img.src; });
+      const img = await aiGenerate(DECOR_PROMPTS[k]);
+      await withTimeout(new Promise((res, rej) => { const t = new Image(); t.onload = res; t.onerror = rej; t.src = img.src; }), 15000);
       state.decor[k] = img.src;
       save(); render();
-    } catch (e) { break; } // offline or declined — retry next visit
+    } catch (e) { break; } // offline, declined, or hung — retry next visit
   }
   decorInflight = false;
 }
