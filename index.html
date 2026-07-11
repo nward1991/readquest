@@ -360,7 +360,7 @@
       <button type="button" class="gold" onclick="addChronicle()">📜 Add</button>
       <div class="full">Chronicles are keepsakes from before your saga — they fill your bookcase but grant no XP, quests, or achievements.</div>
     </div>
-    <div class="bookcase"><div class="bookcase-inner" id="shelf"></div></div>
+    <div class="bookcase" id="bookcaseFrame"><div class="bookcase-inner" id="shelf"></div></div>
     <div class="empty" id="shelfEmpty">An empty bookcase, waiting for legends. Finish a book — or chronicle a past read.</div>
   </section>
 
@@ -437,6 +437,7 @@ function load() {
   if (s.avatarMode === undefined) s.avatarMode = 'ai';
   if (s.aiSeedBump === undefined) s.aiSeedBump = 0;
   if (!s.aiCache) s.aiCache = {};
+  if (!s.decor) s.decor = {};
   return s;
 }
 function save() {
@@ -1296,6 +1297,33 @@ function avatarHTML(av) {
       style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:inherit;"></div>`;
 }
 function setPortraitMode(m) { state.avatarMode = m; save(); renderEditor(); render(); }
+
+/* ================= AI-painted décor (bookcase wood + book spine textures) =================
+   Generated once via the same engine as the portraits, cached, CSS look as fallback. */
+const DECOR_PROMPTS = {
+  wood: 'Seamless dark polished walnut wood texture with subtle carved fantasy ornamentation and warm candlelit sheen, painted AAA MMO game asset texture, rich detail, no objects, full frame.',
+};
+['deep crimson red', 'navy blue', 'forest green', 'royal purple', 'warm chestnut brown', 'charcoal black', 'burgundy wine', 'dark teal'].forEach((c, i) => {
+  DECOR_PROMPTS['spine' + i] = `A single ornate ${c} leather book spine filling the entire frame vertically, gold tooling, ribbed raised bands, weathered fantasy grimoire, painted AAA MMO game asset style, rich detail, no text, no letters, straight-on front view.`;
+});
+let decorInflight = false;
+async function ensureDecor() {
+  if (state.avatarMode !== 'ai' || !window.puter || decorInflight) return;
+  state.decor = state.decor || {};
+  const missing = Object.keys(DECOR_PROMPTS).filter(k => !state.decor[k]);
+  if (!missing.length) return;
+  decorInflight = true;
+  if (!state.decorToastShown) { toast('🎨 Painting your bookcase — it upgrades as each panel dries…'); state.decorToastShown = true; save(); }
+  for (const k of missing) { // sequential — the paint service dislikes concurrent requests
+    try {
+      const img = await puter.ai.txt2img(DECOR_PROMPTS[k], { model: AI_MODEL });
+      await new Promise((res, rej) => { const t = new Image(); t.onload = res; t.onerror = rej; t.src = img.src; });
+      state.decor[k] = img.src;
+      save(); render();
+    } catch (e) { break; } // offline or declined — retry next visit
+  }
+  decorInflight = false;
+}
 function rerollPortrait() {
   state.aiSeedBump = (state.aiSeedBump || 0) + 1;
   save(); renderEditor(); render();
@@ -1635,14 +1663,27 @@ function render() {
   const shelf = document.getElementById('shelf');
   const done = shelfBooks();
   document.getElementById('shelfEmpty').style.display = done.length ? 'none' : 'block';
+  const decor = state.decor || {};
+  ensureDecor();
+  // painted wood on the case & boards once the texture is ready
+  const frame = document.getElementById('bookcaseFrame');
+  if (decor.wood) {
+    frame.style.background = `linear-gradient(rgba(20,14,6,.45), rgba(20,14,6,.6)), url('${decor.wood}') center/420px`;
+    shelf.style.background = `repeating-linear-gradient(to bottom, rgba(15,10,4,.55) 0 126px, rgba(90,62,30,.25) 126px 130px, rgba(30,20,8,.5) 130px 134px), url('${decor.wood}') center/560px`;
+  }
   shelf.innerHTML = done.map(b => {
     const w = Math.max(20, Math.min(44, 18 + Math.round((b.pages || 250) / 45)));
-    const color = SPINE_COLORS[hashStr(b.title) % SPINE_COLORS.length];
+    const idx = hashStr(b.title) % SPINE_COLORS.length;
+    const color = SPINE_COLORS[idx];
+    const tex = decor['spine' + (idx % 8)];
+    const bg = tex
+      ? `linear-gradient(${color}59, ${color}30), url('${tex}') center/cover`
+      : `linear-gradient(90deg, ${shade(color, .75)}, ${color} 40%, ${shade(color, .82)})`;
     const band = b.legacy
       ? `<div class="band" style="color:#c7ccd4">📜</div>`
       : `<div class="band" style="color:var(--gold)">🏆</div>`;
     return `<div class="spine" onclick="showBook(${b.id})" title="${esc(b.title)}${b.author ? ' — ' + esc(b.author) : ''}"
-      style="width:${w}px; background:linear-gradient(90deg, ${shade(color, .75)}, ${color} 40%, ${shade(color, .82)}); ${b.legacy ? 'filter:saturate(.6);' : ''}">
+      style="width:${w}px; background:${bg}; ${b.legacy ? 'filter:saturate(.6);' : ''}">
       <div class="st">${esc(b.title)}</div>${band}</div>`;
   }).join('');
 }
