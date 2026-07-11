@@ -175,10 +175,12 @@
     transition: transform .12s;
   }
   .spine:hover { transform: translateY(-5px); }
-  .spine .st {
-    writing-mode: vertical-rl; font-size: 10.5px; font-weight: 600; color: #f5f2e8;
+  .spine .st { /* gold-foil embossed lettering */
+    writing-mode: vertical-rl; font-family: Georgia, 'Times New Roman', serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .5px; color: #e6c87d; opacity: .92;
     flex: 1; overflow: hidden; margin: 0 auto; padding: 6px 0 2px;
-    text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; text-overflow: ellipsis;
+    text-shadow: 0 1px 1px rgba(0,0,0,.95), 0 -1px 1px rgba(255,240,200,.18), 0 0 4px rgba(0,0,0,.55);
+    white-space: nowrap; text-overflow: ellipsis;
   }
   .spine .band {
     height: 15px; flex: 0 0 15px; display: flex; align-items: center; justify-content: center;
@@ -324,6 +326,7 @@
       <input id="fTitle" placeholder="Book title *" required>
       <input id="fAuthor" placeholder="Author">
       <input id="fPages" type="number" min="1" placeholder="Pages *" required>
+      <input id="fStartPage" type="number" min="0" placeholder="Already on page… (optional)" title="Starting mid-book? Pages you've already read grant no XP — your quest picks up from here.">
       <select id="fGenre">
         <option value="">Genre…</option>
         <option>Fantasy</option><option>Sci-Fi</option><option>Mystery</option>
@@ -347,6 +350,7 @@
       <div class="hint" style="margin:0">Every conquered book takes its place in your bookcase.</div>
       <button class="ghost" onclick="toggleChron()">📜 Chronicle a past read</button>
     </div>
+    <div class="chips" id="bookcasePicker" style="margin-bottom:12px;"></div>
     <div class="add-form" id="chronForm" style="display:none">
       <div style="grid-column:1 / -1; display:flex; gap:8px;">
         <input id="cSearch" placeholder="🔍 Search a book you read before your saga…" style="flex:1">
@@ -438,6 +442,8 @@ function load() {
   if (s.aiSeedBump === undefined) s.aiSeedBump = 0;
   if (!s.aiCache) s.aiCache = {};
   if (!s.decor) s.decor = {};
+  if (s.decor.wood && !s.decor.wood0) { s.decor.wood0 = s.decor.wood; delete s.decor.wood; } // pre-styles saves
+  if (s.bookcaseStyle === undefined) s.bookcaseStyle = 0;
   return s;
 }
 function save() {
@@ -899,8 +905,8 @@ function questTargets(b) { // milestone pages before the end boss (handles tiny 
     .filter((t, i, a) => t >= 1 && t < b.pages && a.indexOf(t) === i);
 }
 function questStages(b) { return questTargets(b).length + 1; } // + end boss
-function questsDone() {
-  return state.books.reduce((s, b) => b.legacy ? s : s + (b.quests || 0) + (b.done ? 1 : 0), 0);
+function questsDone() { // pre-passed milestones (books started mid-read) don't count
+  return state.books.reduce((s, b) => b.legacy ? s : s + Math.max(0, (b.quests || 0) - (b.questsPre || 0)) + (b.done ? 1 : 0), 0);
 }
 function endBossesSlain() { return finishedBooks().length; }
 
@@ -1001,8 +1007,8 @@ function checkAchievements() {
       state.ach.push(a.id);
       toast(`🏅 Achievement unlocked: ${a.name}!`);
       grantXP(50, true); // silent xp for achievement
-      const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS].filter(g => g.ach === a.id);
-      if (gear.length) toast(`🛡️ Trophy gear earned: ${gear.map(g => g.name).join(', ')} — click your avatar!`);
+      const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS, ...BOOKCASES].filter(g => g.ach === a.id);
+      if (gear.length) toast(`🛡️ Trophy gear earned: ${gear.map(g => g.name).join(', ')}!`);
     }
   }
 }
@@ -1017,9 +1023,9 @@ function grantXP(amount, silent) {
     toast(`🎉 LEVEL UP! You are now level ${after} — ${titleFor(after)}`);
     confetti(20);
     const cls = (state.avatar || DEFAULT_AVATAR).class;
-    const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS]
+    const gear = [...OUTFITS, ...HEADGEAR, ...WEAPONS, ...BACKDROPS, ...BOOKCASES]
       .filter(g => g.min !== undefined && g.min > before && g.min <= after && (g.cls === undefined || g.cls === null || g.cls === cls));
-    if (gear.length) toast(`🛡️ New gear unlocked: ${gear.map(g => g.name).join(', ')} — click your avatar!`);
+    if (gear.length) toast(`🛡️ New gear unlocked: ${gear.map(g => g.name).join(', ')}!`);
   }
 }
 
@@ -1156,15 +1162,20 @@ document.getElementById('addForm').addEventListener('submit', e => {
   const title = document.getElementById('fTitle').value.trim();
   const pages = parseInt(document.getElementById('fPages').value, 10);
   if (!title || !pages || pages < 1) return;
+  // starting mid-book: no XP for the road already traveled, milestones silently marked passed
+  const startAt = Math.max(0, Math.min(parseInt(document.getElementById('fStartPage').value, 10) || 0, pages - 1));
+  const passed = questTargets({ pages }).filter(t => startAt >= t).length;
   state.books.push({
     id: Date.now(), title,
     author: document.getElementById('fAuthor').value.trim(),
     genre: document.getElementById('fGenre').value,
-    pages, read: 0, quests: 0, done: false, finishedAt: null, cover: pendingCover, xpEarned: 0
+    pages, read: startAt, quests: passed, questsPre: passed, done: false, finishedAt: null, cover: pendingCover, xpEarned: 0
   });
   pendingCover = null;
   e.target.reset();
-  toast(`⚔️ New quest accepted: "${title}"`);
+  toast(startAt
+    ? `⚔️ Quest resumed at page ${startAt} — XP starts from here!`
+    : `⚔️ New quest accepted: "${title}"`);
   afterChange();
 });
 
@@ -1307,16 +1318,42 @@ function setPortraitMode(m) { state.avatarMode = m; save(); renderEditor(); rend
 
 /* ================= AI-painted décor (bookcase wood + book spine textures) =================
    Generated once via the same engine as the portraits, cached, CSS look as fallback. */
-const DECOR_PROMPTS = {
-  wood: 'Seamless dark polished walnut wood texture with subtle carved fantasy ornamentation and warm candlelit sheen, painted AAA MMO game asset texture, rich detail, no objects, full frame.',
-};
-['deep crimson red', 'navy blue', 'forest green', 'royal purple', 'warm chestnut brown', 'charcoal black', 'burgundy wine', 'dark teal'].forEach((c, i) => {
-  DECOR_PROMPTS['spine' + i] = `A single ornate ${c} leather book spine filling the entire frame vertically, gold tooling, ribbed raised bands, weathered fantasy grimoire, painted AAA MMO game asset style, rich detail, no text, no letters, straight-on front view.`;
-});
+const BOOKCASES = [ // unlockable, like gear — texture prompts painted on demand
+  { name:'Walnut Classic',    min:1,  prompt:'Seamless dark polished walnut wood texture with subtle carved fantasy ornamentation and warm candlelit sheen, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:"Oak Scholar's",     min:5,  prompt:'Seamless honey oak wood texture with fine carved scrollwork and warm library lighting, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:'Blackwood Arcane',  min:12, prompt:'Seamless near-black ebony wood texture with faint glowing blue arcane rune inlays, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:'Gilded Royal',      min:20, prompt:'Seamless deep mahogany wood texture with ornate gold filigree inlay, royal palace library style, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:'Ancient Elven',     ach:'genres5', prompt:'Seamless living elven wood texture with graceful carved vines and leaves and a soft green-gold sheen, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:'Ironbound Dwarven', ach:'p10000',  prompt:'Seamless dark stone and iron-banded wood texture with dwarven geometric carvings and rivets, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+  { name:'Dragonbone',        ach:'boss25',  prompt:'Seamless polished dragonbone and dark horn texture with subtle scale patterns, fantasy trophy material, painted AAA MMO game asset texture, rich detail, no objects, full frame.' },
+];
+const STUDY_PROMPT = 'Cozy fantasy study interior at night, warm candlelight, stone walls with dark wooden panels, sturdy desk with quills and parchment, soft magical atmosphere, painted AAA MMO environment art, muted warm colors, no people, no text.';
+const SPINE_DESCS = ['deep crimson red', 'navy blue', 'forest green', 'royal purple', 'warm chestnut brown', 'charcoal black', 'burgundy wine', 'dark teal'];
+function decorPrompts() { // only what the current bookcase style needs
+  const map = { study: STUDY_PROMPT };
+  const bi = state.bookcaseStyle || 0;
+  map['wood' + bi] = BOOKCASES[bi].prompt;
+  SPINE_DESCS.forEach((c, i) => {
+    map['spine' + i] = `A single ornate ${c} leather book spine filling the entire frame vertically, gold tooling, ribbed raised bands, weathered fantasy grimoire, painted AAA MMO game asset style, rich detail, no text, no letters, straight-on front view.`;
+  });
+  return map;
+}
+function setBookcaseStyle(i) {
+  if (!gearUnlocked(BOOKCASES[i], playerLevel())) {
+    const g = BOOKCASES[i];
+    toast(g.ach ? `🔒 ${g.name} — earn the "${achName(g.ach)}" achievement to unlock`
+                : `🔒 ${g.name} unlocks at level ${g.min}`);
+    return;
+  }
+  state.bookcaseStyle = i;
+  save(); render();
+  if (!(state.decor || {})['wood' + i]) toast(`🎨 Painting your ${BOOKCASES[i].name} bookcase…`);
+}
 let decorInflight = false;
 async function ensureDecor() {
   if (state.avatarMode !== 'ai' || !window.puter || decorInflight) return;
   state.decor = state.decor || {};
+  const DECOR_PROMPTS = decorPrompts();
   const missing = Object.keys(DECOR_PROMPTS).filter(k => !state.decor[k]);
   if (!missing.length) return;
   decorInflight = true;
@@ -1674,10 +1711,25 @@ function render() {
   ensureDecor();
   // painted wood on the case & boards once the texture is ready
   const frame = document.getElementById('bookcaseFrame');
-  if (decor.wood) {
-    frame.style.background = `linear-gradient(rgba(20,14,6,.45), rgba(20,14,6,.6)), url('${decor.wood}') center/420px`;
-    shelf.style.background = `repeating-linear-gradient(to bottom, rgba(15,10,4,.55) 0 126px, rgba(90,62,30,.25) 126px 130px, rgba(30,20,8,.5) 130px 134px), url('${decor.wood}') center/560px`;
+  const wood = decor['wood' + (state.bookcaseStyle || 0)];
+  if (wood) {
+    frame.style.background = `linear-gradient(rgba(20,14,6,.45), rgba(20,14,6,.6)), url('${wood}') center/420px`;
+    shelf.style.background = `repeating-linear-gradient(to bottom, rgba(15,10,4,.55) 0 126px, rgba(90,62,30,.25) 126px 130px, rgba(30,20,8,.5) 130px 134px), url('${wood}') center/560px`;
   }
+  // the study around the bookcase — no more floating furniture
+  const lib = document.getElementById('library');
+  if (decor.study) {
+    lib.style.background = `linear-gradient(rgba(10,8,16,.68), rgba(10,8,16,.82)), url('${decor.study}') center/cover`;
+    lib.style.borderRadius = '16px';
+    lib.style.padding = '16px';
+    frame.style.boxShadow = '0 18px 40px rgba(0,0,0,.65), inset 0 6px 18px rgba(0,0,0,.55)';
+  }
+  // bookcase style picker
+  document.getElementById('bookcasePicker').innerHTML = BOOKCASES.map((bc, i) => {
+    const locked = !gearUnlocked(bc, playerLevel());
+    const sel = (state.bookcaseStyle || 0) === i;
+    return `<div class="chip${sel ? ' sel' : ''}${locked ? ' locked' : ''}" onclick="setBookcaseStyle(${i})">${locked ? '🔒 ' : (bc.ach ? '🏅 ' : '🪵 ')}${bc.name}${locked ? ` · ${lockLabel(bc)}` : ''}</div>`;
+  }).join('');
   shelf.innerHTML = done.map(b => {
     const w = Math.max(20, Math.min(44, 18 + Math.round((b.pages || 250) / 45)));
     const idx = hashStr(b.title) % SPINE_COLORS.length;
