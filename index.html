@@ -83,7 +83,7 @@
   section.active { display: block; animation: fadeIn .25s; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
   @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
-  #heatmap { display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column; gap: 2px; width: max-content; }
+  #heatmap { display: flex; gap: 3px; width: max-content; }
 
   /* ===== Quest cards ===== */
   .quest {
@@ -273,7 +273,7 @@
     <div style="overflow-x:auto; margin-top:14px; padding-bottom:4px" id="heatmapWrap">
       <div id="heatmap"></div>
     </div>
-    <div class="hint">Past year — each square is a day; brighter gold = more pages read.</div>
+    <div class="hint">Last 30 days — each square is a day; brighter gold = more pages read.</div>
   </div>
 
   <!-- Pace & volume -->
@@ -1439,24 +1439,24 @@ function render() {
     sc(readingDays, '📖 Total reading days') +
     sc(`${cs} / ${Math.max(state.bestStreak, cs)}`, '🔥 Streak now / best');
 
-  // Heatmap — past 52 weeks, aligned to week columns
+  // Heatmap — last 30 days, oldest → today
   const hm = document.getElementById('heatmap');
   if (hm) {
     const end = new Date(today() + 'T00:00:00');
     const start = new Date(end);
-    start.setDate(start.getDate() - 364 - end.getDay());
+    start.setDate(start.getDate() - 29);
     let cells = '';
     const day = new Date(start);
     while (day <= end) {
       const k = isoLocal(day);
       const p = byDay[k] || 0;
       const c = p === 0 ? 'rgba(255,255,255,.05)' : p < 10 ? '#5a4a1e' : p < 25 ? '#8a6f22' : p < 50 ? '#c9a52e' : '#f5c542';
-      cells += `<div title="${k} · ${p} pages" style="width:10px;height:10px;border-radius:2px;background:${c}"></div>`;
+      cells += `<div title="${k} · ${p} pages" style="width:11px;height:11px;border-radius:2px;background:${c}"></div>`;
       day.setDate(day.getDate() + 1);
     }
     hm.innerHTML = cells;
     const wrap = document.getElementById('heatmapWrap');
-    wrap.scrollLeft = wrap.scrollWidth; // most recent weeks in view
+    wrap.scrollLeft = wrap.scrollWidth; // today stays in view on narrow screens
   }
 
   // Pace & volume
