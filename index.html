@@ -156,16 +156,34 @@
   .ach .name { font-weight: 700; font-size: 14px; }
   .ach .desc { font-size: 12px; color: var(--dim); margin-top: 2px; }
 
-  /* ===== Library ===== */
-  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-  .trophy-book {
-    background: linear-gradient(160deg, var(--panel2), var(--panel));
-    border: 1px solid var(--gold); border-radius: 12px; padding: 16px 14px; text-align: center;
+  /* ===== Library — the great bookcase ===== */
+  .bookcase {
+    border: 12px solid #4e3820; border-radius: 12px;
+    background: linear-gradient(#33261596, #261c0e), repeating-linear-gradient(90deg, #3a2c1a 0 5px, #342718 5px 10px);
+    box-shadow: inset 0 6px 18px rgba(0,0,0,.55), 0 4px 16px rgba(0,0,0,.4);
+    padding: 0 10px;
   }
-  .trophy-book .emoji { font-size: 34px; }
-  .trophy-book .t { font-weight: 700; font-size: 14px; margin-top: 8px; }
-  .trophy-book .a { font-size: 12px; color: var(--dim); margin-top: 2px; }
-  .trophy-book .d { font-size: 11px; color: var(--gold); margin-top: 6px; }
+  .bookcase-inner {
+    display: flex; flex-wrap: wrap; align-content: flex-start; column-gap: 3px;
+    min-height: 402px;
+    background: repeating-linear-gradient(to bottom, transparent 0 126px, #6b4e2e 126px 130px, #543c22 130px 134px);
+  }
+  .spine {
+    height: 112px; margin: 14px 0 8px; border-radius: 2px 4px 2px 2px; cursor: pointer;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: inset -4px 0 7px rgba(0,0,0,.45), inset 2px 0 3px rgba(255,255,255,.18), 1px 2px 3px rgba(0,0,0,.5);
+    transition: transform .12s;
+  }
+  .spine:hover { transform: translateY(-5px); }
+  .spine .st {
+    writing-mode: vertical-rl; font-size: 10.5px; font-weight: 600; color: #f5f2e8;
+    flex: 1; overflow: hidden; margin: 0 auto; padding: 6px 0 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,.7); white-space: nowrap; text-overflow: ellipsis;
+  }
+  .spine .band {
+    height: 15px; flex: 0 0 15px; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: rgba(0,0,0,.4);
+  }
 
   /* ===== Avatar editor ===== */
   #avatar svg { width: 100%; height: 100%; display: block; }
@@ -325,9 +343,39 @@
 
   <!-- Library -->
   <section id="library">
-    <div class="shelf" id="shelf"></div>
-    <div class="empty" id="shelfEmpty">No bosses slain yet. Finish a book to mount its trophy here.</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+      <div class="hint" style="margin:0">Every conquered book takes its place in your bookcase.</div>
+      <button class="ghost" onclick="toggleChron()">📜 Chronicle a past read</button>
+    </div>
+    <div class="add-form" id="chronForm" style="display:none">
+      <div style="grid-column:1 / -1; display:flex; gap:8px;">
+        <input id="cSearch" placeholder="🔍 Search a book you read before your saga…" style="flex:1">
+        <button type="button" onclick="searchChronicle()">Find</button>
+      </div>
+      <div id="cResults" style="grid-column:1 / -1; display:none"></div>
+      <input id="cTitle" placeholder="Title *">
+      <input id="cAuthor" placeholder="Author">
+      <input id="cPages" type="number" min="1" placeholder="Pages">
+      <input id="cYear" type="number" min="1900" max="2100" placeholder="Year read">
+      <button type="button" class="gold" onclick="addChronicle()">📜 Add</button>
+      <div class="full">Chronicles are keepsakes from before your saga — they fill your bookcase but grant no XP, quests, or achievements.</div>
+    </div>
+    <div class="bookcase"><div class="bookcase-inner" id="shelf"></div></div>
+    <div class="empty" id="shelfEmpty">An empty bookcase, waiting for legends. Finish a book — or chronicle a past read.</div>
   </section>
+
+  <!-- Book detail popup -->
+  <div id="bookModal" style="position:fixed; inset:0; background:rgba(5,6,15,.85); display:none; align-items:center; justify-content:center; z-index:100; padding:16px;" onclick="this.style.display='none'">
+    <div class="victory" style="max-width:340px" onclick="event.stopPropagation()">
+      <img id="bmCover" style="display:none; width:110px; border-radius:8px; border:2px solid var(--gold); margin:0 auto 10px;" alt="">
+      <div class="big" id="bmEmoji" style="display:none">🏆</div>
+      <h2 id="bmTitle" style="font-size:20px; letter-spacing:0"></h2>
+      <p id="bmAuthor"></p>
+      <div class="xp-gain" id="bmMeta" style="font-size:14px"></div>
+      <p class="hint" id="bmBadge"></p>
+      <button class="gold" onclick="document.getElementById('bookModal').style.display='none'">Close</button>
+    </div>
+  </div>
 
   <div style="text-align:center; margin-top:36px;">
     <button class="danger" onclick="resetProgress()" style="font-size:12px;">↺ Reset all progress</button>
@@ -837,7 +885,8 @@ function multiplier() { // +10% per streak day beyond the first, cap 2x
 
 /* ================= Derived stats ================= */
 function totalPages() { return state.logs.reduce((s,l) => s + l.pages, 0); }
-function finishedBooks() { return state.books.filter(b => b.done); }
+function finishedBooks() { return state.books.filter(b => b.done && !b.legacy); } // chronicles don't count for XP/achievements/stats
+function shelfBooks() { return state.books.filter(b => b.done); } // ...but they DO stand on the bookcase
 
 /* ================= Quests & End Bosses =================
    Each book is a 3-stage adventure: Quest 1 at ⅓, Quest 2 at ⅔,
@@ -850,7 +899,7 @@ function questTargets(b) { // milestone pages before the end boss (handles tiny 
 }
 function questStages(b) { return questTargets(b).length + 1; } // + end boss
 function questsDone() {
-  return state.books.reduce((s, b) => s + (b.quests || 0) + (b.done ? 1 : 0), 0);
+  return state.books.reduce((s, b) => b.legacy ? s : s + (b.quests || 0) + (b.done ? 1 : 0), 0);
 }
 function endBossesSlain() { return finishedBooks().length; }
 
@@ -975,12 +1024,7 @@ function grantXP(amount, silent) {
 
 /* ================= Book search (Open Library + Google Books fallback) ================= */
 let pendingCover = null;
-async function searchBooks() {
-  const q = document.getElementById('fSearch').value.trim();
-  if (!q) return;
-  const box = document.getElementById('searchResults');
-  box.style.display = 'block';
-  box.innerHTML = '<div class="hint">📖 Consulting the great library…</div>';
+async function doBookSearch(q) { // returns results array, or null if offline
   let results = [];
   try {
     const r = await fetch('https://openlibrary.org/search.json?limit=6&fields=title,author_name,number_of_pages_median,first_publish_year,cover_i&q=' + encodeURIComponent(q));
@@ -1007,22 +1051,29 @@ async function searchBooks() {
           cover: i.imageLinks ? i.imageLinks.thumbnail.replace('http://', 'https://') : null,
         };
       });
-    } catch (e) {
-      box.innerHTML = '<div class="hint">⚠️ The library is unreachable — check your connection, or enter the book manually below.</div>';
-      return;
-    }
+    } catch (e) { return null; }
   }
-  if (!results.length) {
-    box.innerHTML = '<div class="hint">No tomes found. Try another search, or enter it manually below.</div>';
-    return;
-  }
-  searchHits = results;
-  box.innerHTML = results.map((b, i) => `
-    <div class="result" onclick="pickBook(${i})">
+  return results;
+}
+function resultsHTML(results, pickFn) {
+  return results.map((b, i) => `
+    <div class="result" onclick="${pickFn}(${i})">
       ${b.cover ? `<img src="${esc(b.cover)}" alt="">` : '<div class="no-cover">📕</div>'}
       <div><div class="r-t">${esc(b.title)}</div><div class="r-a">${esc(b.author)}${b.year ? ' · ' + b.year : ''}</div></div>
       <div class="r-p">${b.pages ? b.pages + ' pg' : 'pages?'}</div>
     </div>`).join('');
+}
+async function searchBooks() {
+  const q = document.getElementById('fSearch').value.trim();
+  if (!q) return;
+  const box = document.getElementById('searchResults');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="hint">📖 Consulting the great library…</div>';
+  const results = await doBookSearch(q);
+  if (results === null) { box.innerHTML = '<div class="hint">⚠️ The library is unreachable — check your connection, or enter the book manually below.</div>'; return; }
+  if (!results.length) { box.innerHTML = '<div class="hint">No tomes found. Try another search, or enter it manually below.</div>'; return; }
+  searchHits = results;
+  box.innerHTML = resultsHTML(results, 'pickBook');
 }
 let searchHits = [];
 function pickBook(i) {
@@ -1036,6 +1087,68 @@ function pickBook(i) {
   if (!b.pages) toast('📄 No page count on record — fill it in yourself.');
   else toast(`📖 "${b.title}" ready — hit + New Quest to accept it!`);
 }
+/* ================= Chronicle (past reads — shelf only, no XP) ================= */
+let chronHits = [], chronCover = null;
+function toggleChron() {
+  const f = document.getElementById('chronForm');
+  f.style.display = f.style.display === 'none' ? 'grid' : 'none';
+}
+async function searchChronicle() {
+  const q = document.getElementById('cSearch').value.trim();
+  if (!q) return;
+  const box = document.getElementById('cResults');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="hint">📖 Consulting the great library…</div>';
+  const results = await doBookSearch(q);
+  if (results === null) { box.innerHTML = '<div class="hint">⚠️ Library unreachable — enter it manually below.</div>'; return; }
+  if (!results.length) { box.innerHTML = '<div class="hint">No tomes found — enter it manually below.</div>'; return; }
+  chronHits = results;
+  box.innerHTML = resultsHTML(results, 'pickChron');
+}
+function pickChron(i) {
+  const b = chronHits[i];
+  document.getElementById('cTitle').value = b.title;
+  document.getElementById('cAuthor').value = b.author;
+  document.getElementById('cPages').value = b.pages || '';
+  chronCover = b.cover;
+  document.getElementById('cResults').style.display = 'none';
+  document.getElementById('cSearch').value = '';
+}
+function addChronicle() {
+  const title = document.getElementById('cTitle').value.trim();
+  if (!title) { toast('📝 The chronicle needs a title.'); return; }
+  const pages = parseInt(document.getElementById('cPages').value, 10) || 0;
+  const year = parseInt(document.getElementById('cYear').value, 10) || null;
+  state.books.push({
+    id: Date.now(), title,
+    author: document.getElementById('cAuthor').value.trim(),
+    genre: '', pages, read: pages, quests: 0, done: true, legacy: true,
+    finishedAt: null, legacyWhen: year, cover: chronCover, xpEarned: 0,
+    coverTried: !!chronCover,
+  });
+  ['cTitle', 'cAuthor', 'cPages', 'cYear'].forEach(id => document.getElementById(id).value = '');
+  chronCover = null;
+  toast(`📜 "${title}" chronicled — it takes its place on your shelf.`);
+  afterChange();
+}
+const SPINE_COLORS = ['#7a3b2e','#2f5d8a','#3e6b3f','#6e4a7e','#8a6f22','#4a5e6e','#8a2430','#3a5a40','#5b3fa8','#7a5c3e','#42607a','#6b3554'];
+function showBook(id) {
+  const b = state.books.find(x => x.id === id);
+  if (!b) return;
+  const cover = document.getElementById('bmCover'), emoji = document.getElementById('bmEmoji');
+  if (b.cover) { cover.src = b.cover; cover.style.display = 'block'; emoji.style.display = 'none'; }
+  else { cover.style.display = 'none'; emoji.style.display = 'block'; emoji.textContent = b.legacy ? '📜' : '🏆'; }
+  document.getElementById('bmTitle').textContent = b.title;
+  document.getElementById('bmAuthor').textContent = b.author || 'Unknown author';
+  document.getElementById('bmMeta').textContent = b.legacy
+    ? `${b.pages ? b.pages + ' pages · ' : ''}Read ${b.legacyWhen || 'long ago'}`
+    : `${b.pages} pages · ${questStages(b)} quests · +${(b.xpEarned || 0).toLocaleString()} XP`;
+  document.getElementById('bmBadge').textContent = b.legacy
+    ? '📜 Chronicle — a legend from before your saga'
+    : `🏆 Conquered ${fmtDate(b.finishedAt)}`;
+  document.getElementById('bookModal').style.display = 'flex';
+}
+
 /* ================= Actions ================= */
 document.getElementById('addForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -1518,17 +1631,20 @@ function render() {
     grid.appendChild(div);
   }
 
-  // Library
+  // Library — the great bookcase fills spine by spine
   const shelf = document.getElementById('shelf');
-  const done = finishedBooks();
-  shelf.innerHTML = '';
+  const done = shelfBooks();
   document.getElementById('shelfEmpty').style.display = done.length ? 'none' : 'block';
-  for (const b of done) {
-    const div = document.createElement('div');
-    div.className = 'trophy-book';
-    div.innerHTML = `${b.cover ? `<img class="cover" src="${esc(b.cover)}" alt="">` : '<div class="emoji">🏆</div>'}<div class="t">${esc(b.title)}</div><div class="a">${esc(b.author || '')}</div><div class="d">${fmtDate(b.finishedAt)}</div><div class="d">${questStages(b)} quests · +${(b.xpEarned || 0).toLocaleString()} XP</div>`;
-    shelf.appendChild(div);
-  }
+  shelf.innerHTML = done.map(b => {
+    const w = Math.max(20, Math.min(44, 18 + Math.round((b.pages || 250) / 45)));
+    const color = SPINE_COLORS[hashStr(b.title) % SPINE_COLORS.length];
+    const band = b.legacy
+      ? `<div class="band" style="color:#c7ccd4">📜</div>`
+      : `<div class="band" style="color:var(--gold)">🏆</div>`;
+    return `<div class="spine" onclick="showBook(${b.id})" title="${esc(b.title)}${b.author ? ' — ' + esc(b.author) : ''}"
+      style="width:${w}px; background:linear-gradient(90deg, ${shade(color, .75)}, ${color} 40%, ${shade(color, .82)}); ${b.legacy ? 'filter:saturate(.6);' : ''}">
+      <div class="st">${esc(b.title)}</div>${band}</div>`;
+  }).join('');
 }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(iso) {
